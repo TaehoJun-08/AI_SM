@@ -1,0 +1,4 @@
+Flask
+python-dotenv
+fpdf2
+pytest
