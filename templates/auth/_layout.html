@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body_class %}auth-page{% endblock %}
+{% block main %}
+<main class="auth-hero">
+  <div class="container">
+    <div class="row align-items-center justify-content-center justify-content-lg-between">
+
+      <div class="col-lg-6 d-none d-lg-block text-white">
+        <h1 class="display-5 fw-bold">Where ideas meet sponsors.</h1>
+        <p class="lead auth-tagline">
+          Innovators share what they're building. Sponsors find projects worth backing.
+          We do the matchmaking.
+        </p>
+      </div>
+
+      <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+        <div class="auth-card">
+          {% include "_flashes.html" %}
+          {% block form %}{% endblock %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+{% endblock %}
