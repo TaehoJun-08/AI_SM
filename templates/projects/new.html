@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block title %}Submit a Project · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<section class="dash-hero">
+  <div>
+    <span class="role-pill">🚀 New project</span>
+    <h1 class="hello">Share your idea</h1>
+    <p class="dash-sub">Tell sponsors what you're building. The clearer it is, the better the match.</p>
+  </div>
+  <div class="crystal" aria-hidden="true">💡</div>
+</section>
+
+<div class="magic-card form-card mb-5">
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="title">Project title</label>
+      <input id="title" name="title" class="form-control" maxlength="100"
+             value="{{ form.get('title', '') }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="summary">One-line pitch</label>
+      <input id="summary" name="summary" class="form-control" maxlength="160"
+             placeholder="e.g. Low-cost soil sensors that tell farmers when to water"
+             value="{{ form.get('summary', '') }}" required>
+      <div class="form-text">Up to 160 characters.</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="description">Description</label>
+      <textarea id="description" name="description" class="form-control" rows="5"
+                placeholder="What problem does it solve? Who is it for? What have you built so far?"
+                required>{{ form.get('description', '') }}</textarea>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="domain">Domain</label>
+        <select id="domain" name="domain" class="form-select" required>
+          <option value="">Choose…</option>
+          {% for d in domains %}
+            <option {% if form.get('domain') == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="stage">Stage</label>
+        <select id="stage" name="stage" class="form-select" required>
+          <option value="">Choose…</option>
+          {% for key, label in stages.items() %}
+            <option value="{{ key }}" {% if form.get('stage') == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="funding_needed">Funding needed</label>
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input id="funding_needed" name="funding_needed" type="number"
+                 class="form-control" min="1" step="1" placeholder="500000"
+                 value="{{ form.get('funding_needed', '') }}" required>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-magic">Submit project ✨</button>
+      <a href="{{ url_for('dashboard.innovator') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
