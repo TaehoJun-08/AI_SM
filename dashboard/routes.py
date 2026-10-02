@@ -1,5 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, session
 from helpers import current_user, login_required, role_required
+from db import get_db
+
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -18,8 +20,11 @@ def index():
 @login_required
 @role_required("innovator")
 def innovator():
-    return render_template("dashboard/innovator.html")
-
+    projects = get_db().execute(
+        "SELECT * FROM projects WHERE innovator_id = ? ORDER BY id DESC",
+        (session["user_id"],),
+    ).fetchall()
+    return render_template("dashboard/innovator.html", projects=projects)
 
 @dashboard_bp.route("/sponsor")
 @login_required

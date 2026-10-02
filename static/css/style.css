@@ -398,3 +398,40 @@
   .magic-card::before,
   .avatar::before { animation: none; }
 }
+
+/* Form inside a magic card: comfortable width, no hover lift while typing */
+.form-card {
+  max-width: 48rem;
+}
+.form-card:hover {
+  transform: none;
+}
+
+
+/* ---------- Project cards ---------- */
+
+/* Small rounded labels for domain and stage */
+.tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  color: #5b21b6;
+  background: rgba(167, 139, 250, 0.2);
+}
+.tag-pink {
+  color: #be185d;
+  background: rgba(236, 72, 153, 0.15);
+}
+
+/* Funding amount: big and bold so sponsors notice it */
+.funding {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #2e1065;
+}
+.funding small {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b6290;
+}
