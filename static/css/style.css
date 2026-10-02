@@ -39,3 +39,9 @@
   padding: 0.65rem;
   font-weight: 600;
 }
+
+/* Role picker: make the small hint text readable on the selected button */
+.btn-check:checked + .btn small {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Innovator Dashboard · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<span class="badge text-bg-primary mb-2">💡 Innovator</span>
+<h2 class="fw-bold">Hi, {{ user['full_name'] }}</h2>
+<p class="text-muted mb-4">Share your ideas and get matched with sponsors.</p>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">My projects</h5>
+        <p class="card-text text-muted">You haven't submitted any projects yet.</p>
+        <button class="btn btn-primary" disabled>+ Submit a project</button>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Sponsor matches</h5>
+        <p class="card-text text-muted">Matches will appear here once you add a project.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

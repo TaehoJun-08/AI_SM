@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Sponsor Dashboard · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<span class="badge text-bg-success mb-2">🤝 Sponsor</span>
+<h2 class="fw-bold">Hi, {{ user['full_name'] }}</h2>
+<p class="text-muted mb-4">Discover projects worth backing.</p>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Recommended projects</h5>
+        <p class="card-text text-muted">No projects to recommend yet.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">My sponsor profile</h5>
+        <p class="card-text text-muted">Set your interests and budget to get better matches.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
