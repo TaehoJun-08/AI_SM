@@ -1,27 +1,38 @@
 {% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
 {% block title %}Innovator Dashboard · Sponsorship Matchmaker{% endblock %}
 {% block content %}
-<span class="badge text-bg-primary mb-2">💡 Innovator</span>
-<h2 class="fw-bold">Hi, {{ user['full_name'] }}</h2>
-<p class="text-muted mb-4">Share your ideas and get matched with sponsors.</p>
+<section class="dash-hero">
+  <div>
+    <span class="role-pill">💡 Innovator</span>
+    <h1 class="hello">Hi, {{ user['full_name'] }}</h1>
+    <p class="dash-sub">Share your ideas and let the magic find sponsors who believe in them.</p>
+  </div>
+  <div class="crystal" aria-hidden="true">🔮</div>
+</section>
 
-<div class="row g-3">
+<div class="row g-4">
   <div class="col-md-6">
-    <div class="card h-100 shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">My projects</h5>
-        <p class="card-text text-muted">You haven't submitted any projects yet.</p>
-        <button class="btn btn-primary" disabled>+ Submit a project</button>
-      </div>
+    <div class="magic-card h-100">
+      <div class="orb">🚀</div>
+      <h5>My projects</h5>
+      <p>You haven't submitted any projects yet.</p>
+      <button class="btn btn-magic" disabled>+ Submit a project</button>
     </div>
   </div>
   <div class="col-md-6">
-    <div class="card h-100 shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">Sponsor matches</h5>
-        <p class="card-text text-muted">Matches will appear here once you add a project.</p>
-      </div>
+    <div class="magic-card h-100">
+      <div class="orb orb-pink">✨</div>
+      <h5>Sponsor matches</h5>
+      <p class="mb-0">Matches will appear here once you add a project.</p>
     </div>
   </div>
+</div>
+
+<h6 class="journey-title">Your journey</h6>
+<div class="journey">
+  <div class="step done"><span>✓</span> Create your account</div>
+  <div class="step"><span>2</span> Submit your first project</div>
+  <div class="step"><span>3</span> Get matched with sponsors</div>
 </div>
 {% endblock %}

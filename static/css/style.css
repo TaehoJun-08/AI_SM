@@ -45,3 +45,356 @@
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
+/* ---------- Dashboard pages ---------- */
+
+.dashboard-page {
+  min-height: 100vh;
+  background: #f5f3ff;
+}
+
+/* Four soft colour blobs that slowly shift and drift */
+.dashboard-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.55), transparent 40%),
+    radial-gradient(circle at 90% 15%, rgba(236, 72, 153, 0.45), transparent 40%),
+    radial-gradient(circle at 75% 85%, rgba(14, 165, 233, 0.45), transparent 40%),
+    radial-gradient(circle at 15% 90%, rgba(251, 146, 60, 0.45), transparent 40%);
+  animation: magic-shift 20s ease-in-out infinite alternate;
+}
+
+@keyframes magic-shift {
+  from { filter: hue-rotate(0deg);  transform: scale(1); }
+  to   { filter: hue-rotate(60deg); transform: scale(1.15); }
+}
+
+/* Twinkling stardust layered over the colour blobs */
+.dashboard-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 12% 18%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 28% 62%, #fff, transparent),
+    radial-gradient(2.5px 2.5px at 47% 30%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 63% 78%, #fff, transparent),
+    radial-gradient(2px 2px at 82% 40%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 92% 88%, #fff, transparent),
+    radial-gradient(2px 2px at 6% 82%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 72% 12%, #fff, transparent);
+  background-size: 420px 420px;
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.35; }
+  to   { opacity: 1; }
+}
+
+/* ---------- Dashboard hero ---------- */
+
+.dash-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem 0 2rem;
+}
+
+.role-pill {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5b21b6;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(167, 139, 250, 0.6);
+  box-shadow: 0 0 18px rgba(167, 139, 250, 0.45);
+}
+
+/* "Hi, name": gradient text with a light sweeping across it */
+.hello {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  margin: 0.75rem 0 0.4rem;
+  background: linear-gradient(90deg, #7c3aed, #db2777, #f97316, #db2777, #7c3aed);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
+
+.dash-sub {
+  color: #4c4470;
+  font-size: 1.1rem;
+  max-width: 40rem;
+  margin: 0;
+}
+
+/* Floating crystal ball with a glowing halo */
+.crystal {
+  font-size: 5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 22px rgba(167, 139, 250, 0.9))
+          drop-shadow(0 0 40px rgba(236, 72, 153, 0.5));
+  animation: float 5s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50%      { transform: translateY(-14px) rotate(4deg); }
+}
+
+/* ---------- Magic cards ---------- */
+
+/* Lets the browser animate an angle (used by the spinning borders) */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.magic-card {
+  position: relative;
+  padding: 1.75rem;
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0.75rem 2rem rgba(91, 33, 182, 0.12);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+/* Rainbow border that slowly spins around the card */
+.magic-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--angle), #a78bfa, #ec4899, #fb923c, #38bdf8, #a78bfa);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-border 6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spin-border {
+  to { --angle: 360deg; }
+}
+
+.magic-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 1rem 2.5rem rgba(124, 58, 237, 0.25),
+    0 0 40px rgba(236, 72, 153, 0.25);
+}
+
+.magic-card h5 {
+  font-weight: 700;
+  color: #2e1065;
+}
+
+.magic-card p {
+  color: #5b5478;
+}
+
+/* Glowing icon orb at the top of each card */
+.orb {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  background: radial-gradient(circle at 30% 30%, #fff, #c4b5fd 45%, #8b5cf6);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+.orb-pink {
+  background: radial-gradient(circle at 30% 30%, #fff, #f9a8d4 45%, #ec4899);
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.55), inset 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+/* Gradient button with a glow */
+.btn-magic {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(90deg, #7c3aed, #db2777, #f97316);
+  box-shadow: 0 0.5rem 1.25rem rgba(219, 39, 119, 0.35);
+}
+
+.btn-magic:hover { color: #fff; filter: brightness(1.08); }
+.btn-magic:disabled { color: #fff; opacity: 0.55; }
+
+/* ---------- Journey steps ---------- */
+
+.journey-title {
+  margin: 2.5rem 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6d28d9;
+}
+
+.journey {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding-bottom: 3rem;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 1rem;
+  color: #3b2f63;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.step span {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #6d28d9;
+  background: rgba(167, 139, 250, 0.2);
+  border: 1px dashed rgba(124, 58, 237, 0.5);
+}
+
+.step.done span {
+  color: #fff;
+  border: 0;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  box-shadow: 0 0 14px rgba(236, 72, 153, 0.55);
+}
+
+/* Small screens: hide the crystal ball so the greeting has room */
+@media (max-width: 575px) {
+  .crystal { display: none; }
+}
+
+
+/* ---------- Navbar ---------- */
+
+/* Aurora: a wide gradient that slowly flows sideways.
+   It loops back to its first colour so the animation never "jumps". */
+.app-navbar {
+  background: linear-gradient(90deg,
+    #4c1d95, #6d28d9, #a21caf, #db2777, #ea580c, #db2777, #a21caf, #6d28d9, #4c1d95);
+  background-size: 300% 100%;
+  animation: aurora 24s linear infinite;
+  box-shadow: 0 4px 20px rgba(109, 40, 217, 0.3);
+}
+.app-navbar .navbar-brand {
+  font-weight: 700;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes aurora {
+  from { background-position: 0% 50%; }
+  to   { background-position: 300% 50%; }
+}
+
+/* Dashboards: brighter aurora with a soft glow spilling onto the page */
+.dashboard-page .app-navbar {
+  animation-duration: 16s;
+  box-shadow:
+    0 4px 24px rgba(219, 39, 119, 0.35),
+    0 10px 50px rgba(124, 58, 237, 0.25);
+}
+
+/* Login / register: dark see-through aurora that melts into the photo */
+.auth-page .app-navbar {
+  background:
+    linear-gradient(rgba(10, 15, 30, 0.6), rgba(10, 15, 30, 0.6)),
+    linear-gradient(90deg,
+      #4c1d95, #6d28d9, #a21caf, #db2777, #ea580c, #db2777, #a21caf, #6d28d9, #4c1d95);
+  background-size: 100% 100%, 300% 100%;
+  animation-name: aurora-dim;
+  box-shadow: none;
+}
+
+@keyframes aurora-dim {
+  from { background-position: 0 0, 0% 50%; }
+  to   { background-position: 0 0, 300% 50%; }
+}
+
+/* "Dashboard" link: plain text that glows softly on hover */
+.nav-pill {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+}
+.nav-pill:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+/* Profile chip: avatar + name + role */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #fff;
+  padding: 0.25rem 0.9rem 0.25rem 0.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Avatar with a spinning rainbow ring */
+.avatar {
+  position: relative;
+  isolation: isolate;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  background: linear-gradient(135deg, #a78bfa, #ec4899, #fb923c);
+}
+
+.avatar::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: 50%;
+  background: conic-gradient(from var(--angle), #a78bfa, #ec4899, #fb923c, #38bdf8, #a78bfa);
+  filter: blur(2px);
+  animation: spin-border 4s linear infinite;
+}
+
+/* Respect users who turn off animations in their OS settings */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page::before,
+  .dashboard-page::after,
+  .app-navbar,
+  .hello,
+  .crystal,
+  .magic-card::before,
+  .avatar::before { animation: none; }
+}
