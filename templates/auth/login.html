@@ -1,15 +1,20 @@
-{% extends "base.html" %}
-{% block content %}
-<h4>Login</h4>
-<form method="POST" style="max-width:400px">
+{% extends "auth/_layout.html" %}
+{% block title %}Login · Sponsorship Matchmaker{% endblock %}
+{% block form %}
+<h3 class="fw-bold mb-1">Welcome back</h3>
+<p class="text-muted mb-4">Log in to continue.</p>
+<form method="POST">
   <div class="mb-3">
     <label class="form-label">Email</label>
-    <input name="email" type="email" class="form-control" required>
+    <input name="email" type="email" class="form-control" placeholder="you@example.com" required>
   </div>
-  <div class="mb-3">
+  <div class="mb-4">
     <label class="form-label">Password</label>
     <input name="password" type="password" class="form-control" required>
   </div>
-  <button class="btn btn-primary">Login</button>
+  <button class="btn btn-primary w-100">Login</button>
 </form>
+<p class="text-center mt-4 mb-0 small">
+  New here? <a href="{{ url_for('auth.register') }}">Create an account</a>
+</p>
 {% endblock %}
