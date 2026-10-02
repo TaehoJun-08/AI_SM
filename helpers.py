@@ -1,4 +1,5 @@
-from flask import session
+from functools import wraps
+from flask import session, redirect, url_for, flash
 from db import get_db
 
 def current_user():
@@ -8,3 +9,26 @@ def current_user():
     return get_db().execute(
         "SELECT * FROM users WHERE id = ?", (user_id,)
     ).fetchone()
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if session.get("user_id") is None:
+            flash("Please log in first.")
+            return redirect(url_for("auth.login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def role_required(role):
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            user = current_user()
+            if user is None or user["role"] != role:
+                flash("You don't have access to that page.")
+                return redirect(url_for("home"))
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator

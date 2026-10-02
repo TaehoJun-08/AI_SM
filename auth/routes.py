@@ -13,9 +13,14 @@ def register():
     full_name = request.form["full_name"].strip()
     email = request.form["email"].strip().lower()
     password = request.form["password"]
+    role = request.form.get("role", "innovator")
 
     if not full_name or not email or not password:
         flash("All fields are required.")
+        return render_template("auth/register.html")
+
+    if role not in ("innovator", "sponsor"):
+        flash("Please choose a valid role.")
         return render_template("auth/register.html")
 
     if len(password) < 6:
@@ -31,8 +36,8 @@ def register():
         return render_template("auth/register.html")
 
     db.execute(
-        "INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)",
-        (full_name, email, generate_password_hash(password)),
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+        (full_name, email, generate_password_hash(password), role),
     )
     db.commit()
     flash("Account created. Please log in.")
@@ -58,7 +63,7 @@ def login():
 
     session.clear()
     session["user_id"] = user["id"]
-    return redirect(url_for("home"))
+    return redirect(url_for("dashboard.index"))
 
 #logout
 

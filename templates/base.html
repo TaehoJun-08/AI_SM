@@ -15,7 +15,11 @@
 
   <div>
     {% if user %}
-      <span class="text-light me-3">{{ user['full_name'] }}</span>
+      <a class="btn btn-sm btn-primary me-2" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+      <span class="text-light me-3">
+        {{ user['full_name'] }}
+        <span class="badge text-bg-secondary text-capitalize">{{ user['role'] }}</span>
+      </span>
       <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.logout') }}">Logout</a>
     {% else %}
       <a class="btn btn-sm btn-outline-light" href="{{ url_for('auth.login') }}">Login</a>

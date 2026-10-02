@@ -4,6 +4,25 @@
 <h3 class="fw-bold mb-1">Create an account</h3>
 <p class="text-muted mb-4">It takes less than a minute.</p>
 <form method="POST">
+  <label class="form-label">I am a…</label>
+  <div class="row g-2 mb-3">
+    <div class="col-6">
+      <input type="radio" class="btn-check" name="role" id="role-innovator"
+             value="innovator" checked>
+      <label class="btn btn-outline-primary w-100 py-2" for="role-innovator">
+        💡 Innovator
+        <small class="d-block text-body-secondary">I have an idea</small>
+      </label>
+    </div>
+    <div class="col-6">
+      <input type="radio" class="btn-check" name="role" id="role-sponsor"
+             value="sponsor">
+      <label class="btn btn-outline-primary w-100 py-2" for="role-sponsor">
+        🤝 Sponsor
+        <small class="d-block text-body-secondary">I want to fund</small>
+      </label>
+    </div>
+  </div>
   <div class="mb-3">
     <label class="form-label">Full name</label>
     <input name="full_name" class="form-control" required>
