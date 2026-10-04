@@ -16,22 +16,63 @@
     <div class="magic-card h-100">
       <div class="orb">🌟</div>
       <h5>Recommended projects</h5>
-      <p class="mb-0">No projects to recommend yet.</p>
+      {% if matches %}
+        <p class="mb-0">✨ {{ matches|length }} matching project{{ 's' if matches|length != 1 }} found. See them below.</p>
+      {% elif profile %}
+        <p class="mb-0">No projects match your profile yet. Check back soon!</p>
+      {% else %}
+        <p class="mb-0">Set up your profile to get project recommendations.</p>
+      {% endif %}
     </div>
   </div>
   <div class="col-md-6">
     <div class="magic-card h-100">
       <div class="orb orb-pink">🎯</div>
       <h5>My sponsor profile</h5>
-      <p class="mb-0">Set your interests and budget to get better matches.</p>
+      {% if profile %}
+        <p class="fw-semibold mb-2">{{ profile['organisation'] }}</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for d in domains %}<span class="tag">{{ d }}</span>{% endfor %}
+        </div>
+        <div class="funding">₹{{ "{:,}".format(profile['budget_min']) }} – ₹{{ "{:,}".format(profile['budget_max']) }} <small>budget</small></div>
+        <a class="small fw-semibold d-inline-block mt-3" href="{{ url_for('sponsors.profile') }}">✏️ Edit profile</a>
+      {% else %}
+        <p>Set your interests and budget to get better matches.</p>
+        <a class="btn btn-magic" href="{{ url_for('sponsors.profile') }}">Set up profile ✨</a>
+      {% endif %}
     </div>
   </div>
 </div>
 
+{% if matches %}
+<h6 class="journey-title">Recommended for you</h6>
+<div class="row g-4">
+  {% for m in matches %}
+  {% set p = m.project %}
+  <div class="col-md-6 col-lg-4">
+    <div class="magic-card h-100">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <span class="tag">{{ p['domain'] }}</span>
+        <span class="tag tag-pink">{{ m.score }}% match</span>
+      </div>
+      <h5>{{ p['title'] }}</h5>
+      <p>{{ p['summary'] }}</p>
+      <div class="funding">₹{{ "{:,}".format(p['funding_needed']) }} <small>needed</small></div>
+      <ul class="small text-muted mt-3 mb-0 ps-3">
+        {% for r in m.reasons %}<li>{{ r }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <h6 class="journey-title">Your journey</h6>
 <div class="journey">
   <div class="step done"><span>✓</span> Create your account</div>
-  <div class="step"><span>2</span> Set up your sponsor profile</div>
+   <div class="step {{ 'done' if profile }}">
+    <span>{{ '✓' if profile else '2' }}</span> Set up your sponsor profile
+  </div>
   <div class="step"><span>3</span> Discover and back projects</div>
 </div>
 {% endblock %}

@@ -8,6 +8,7 @@ projects_bp = Blueprint("projects", __name__, url_prefix="/projects")
 DOMAINS = ["AI / ML", "HealthTech", "EdTech", "FinTech", "AgriTech",
            "CleanTech", "Social Impact", "Other"]
 STAGES = {"idea": "Idea", "prototype": "Prototype", "mvp": "MVP", "growth": "Growth"}
+MAX_FUNDING = 10_000_000_000  # ₹1,000 crore
 
 
 def show_form(form=None, project=None):
@@ -29,8 +30,11 @@ def validate(form):
         return None, "Please fill in every field."
     if data["domain"] not in DOMAINS or data["stage"] not in STAGES:
         return None, "Please choose a valid domain and stage."
-    if not data["funding_needed"].isdigit() or int(data["funding_needed"]) <= 0:
-        return None, "Funding needed must be a whole number above 0."
+    funding = data["funding_needed"]
+    if not funding.isdecimal() or not 0 < int(funding) <= MAX_FUNDING:
+        return None, "Funding needed must be a whole number between 1 and 1,000 crore."
+    if len(data["title"]) > 100:
+        return None, "Keep the title to 100 characters or less."
     if len(data["summary"]) > 160:
         return None, "Keep the summary to 160 characters or less."
     data["funding_needed"] = int(data["funding_needed"])

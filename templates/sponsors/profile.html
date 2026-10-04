@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block title %}Sponsor Profile · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<section class="dash-hero">
+  <div>
+    <span class="role-pill">🤝 Sponsor profile</span>
+    <h1 class="hello">Tell innovators what you back</h1>
+    <p class="dash-sub">Your domains and budget decide which projects we match you with.</p>
+  </div>
+  <div class="crystal" aria-hidden="true">💎</div>
+</section>
+
+<div class="magic-card form-card mb-5">
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="organisation">Organisation</label>
+      <input id="organisation" name="organisation" class="form-control" maxlength="100"
+             value="{{ form.get('organisation', '') }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold" for="bio">About you</label>
+      <textarea id="bio" name="bio" class="form-control" rows="4"
+                placeholder="What kind of ideas do you like to support, and why?"
+                required>{{ form.get('bio', '') }}</textarea>
+    </div>
+
+     <div class="mb-3">
+      <span class="form-label fw-semibold d-block">Domains you sponsor</span>
+      <div class="d-flex flex-wrap gap-2">
+        {% for d in domains %}
+          <input type="checkbox" class="btn-check" name="domains" value="{{ d }}"
+                 id="dom{{ loop.index }}" {% if d in chosen %}checked{% endif %}>
+          <label class="btn btn-sm chip" for="dom{{ loop.index }}">{{ d }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold" for="budget_min">Minimum budget</label>
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input id="budget_min" name="budget_min" type="number" class="form-control" min="1" step="1"
+                 placeholder="50000" value="{{ form.get('budget_min', '') }}" required>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold" for="budget_max">Maximum budget</label>
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input id="budget_max" name="budget_max" type="number" class="form-control" min="1" step="1"
+                 placeholder="500000" value="{{ form.get('budget_max', '') }}" required>
+        </div>
+      </div>
+    </div>
+
+     <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-magic">Save profile ✨</button>
+      <a href="{{ url_for('dashboard.sponsor') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
