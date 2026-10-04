@@ -36,6 +36,7 @@
         </div>
         <div class="funding">₹{{ "{:,}".format(profile['budget_min']) }} – ₹{{ "{:,}".format(profile['budget_max']) }} <small>budget</small></div>
         <a class="small fw-semibold d-inline-block mt-3" href="{{ url_for('sponsors.profile') }}">✏️ Edit profile</a>
+        <a class="small fw-semibold d-inline-block mt-3 ms-3" href="{{ url_for('reports.sponsor') }}" target="_blank">📄 Download report</a>
       {% else %}
         <p>Set your interests and budget to get better matches.</p>
         <a class="btn btn-magic" href="{{ url_for('sponsors.profile') }}">Set up profile ✨</a>
