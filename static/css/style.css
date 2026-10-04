@@ -540,3 +540,40 @@
 @media (max-width: 767px) {
   .space-layout { grid-template-columns: 1fr; }
 }
+
+/* ---------- Channel chat ---------- */
+.space-main { height: 75vh; }
+.chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem;
+}
+.msg { display: flex; gap: 0.6rem; align-items: flex-start; max-width: 80%; }
+.msg .avatar-sm { flex-shrink: 0; }
+.msg-meta { font-size: 0.8rem; color: #6b6290; margin-bottom: 0.15rem; }
+.msg-meta strong { color: #2e1065; }
+.msg-body {
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.25rem 1rem 1rem 1rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #2e1065;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+.msg.mine .msg-meta { text-align: right; }
+.msg.mine .msg-body {
+  border-radius: 1rem 0.25rem 1rem 1rem;
+  color: #fff;
+  background: linear-gradient(90deg, #7c3aed, #db2777);
+}
+.chat-form {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid rgba(124, 58, 237, 0.15);
+}

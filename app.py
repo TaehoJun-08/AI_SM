@@ -9,6 +9,7 @@ from projects.routes import projects_bp
 from sponsors.routes import sponsors_bp
 from interests.routes import interests_bp
 from spaces.routes import spaces_bp
+from extensions import socketio
 
 load_dotenv()
 
@@ -21,6 +22,9 @@ app.register_blueprint(projects_bp)
 app.register_blueprint(sponsors_bp)
 app.register_blueprint(interests_bp)
 app.register_blueprint(spaces_bp)
+socketio.init_app(app)
+
+import spaces.chat  # registers the chat events
 
 @app.context_processor
 def inject_user():
@@ -31,4 +35,4 @@ def home():
     return render_template("home.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
