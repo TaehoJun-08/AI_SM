@@ -98,6 +98,7 @@
       {% endif %}
 
       <div class="d-flex align-items-center gap-3 mt-3">
+        <a class="small fw-semibold" href="{{ url_for('reports.project', project_id=p['id']) }}" target="_blank">📄 PDF</a>
         <a class="small fw-semibold" href="{{ url_for('projects.edit', project_id=p['id']) }}">✏️ Edit</a>
         <form method="POST" action="{{ url_for('projects.delete', project_id=p['id']) }}"
               onsubmit="return confirm('Delete this project? This cannot be undone.');">
