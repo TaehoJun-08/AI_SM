@@ -45,3 +45,24 @@ CREATE TABLE IF NOT EXISTS interests (
     created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
     UNIQUE (sponsor_id, project_id)
 );
+
+CREATE TABLE IF NOT EXISTS project_members (
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (project_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS project_invites (
+    project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+    code       TEXT    NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS channels (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name       TEXT    NOT NULL,
+    team_only  INTEGER NOT NULL DEFAULT 0 CHECK (team_only IN (0, 1)),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    UNIQUE (project_id, name)
+);

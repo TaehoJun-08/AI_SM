@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block title %}{{ project['title'] }} · Spaces{% endblock %}
+{% block content %}
+<div class="space-layout mb-5">
+  <aside class="space-side">
+    <a class="small fw-semibold" href="{{ url_for('spaces.index') }}">← All spaces</a>
+    <h5 class="mt-2 mb-1">{{ project['title'] }}</h5>
+    <span class="tag">{{ roles[role] }}</span>
+
+    <div class="side-title">Channels</div>
+    {% for c in channels %}
+      <a class="channel {{ 'active' if c['id'] == current['id'] }}"
+         href="{{ url_for('spaces.view', project_id=project['id'], channel_id=c['id']) }}">
+        {{ '🔒' if c['team_only'] else '#' }} {{ c['name'] }}
+      </a>
+    {% endfor %}
+
+    {% if role == 'owner' %}
+      <form method="POST" action="{{ url_for('spaces.new_channel', project_id=project['id']) }}" class="mt-2">
+        <input name="name" class="form-control form-control-sm mb-1" placeholder="new-channel"
+               maxlength="30" required>
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="small"><input type="checkbox" name="team_only" value="1"> 🔒 Team only</label>
+          <button class="btn btn-magic btn-sm">+ Add</button>
+        </div>
+      </form>
+    {% endif %}
+
+    <div class="side-title">Members · {{ members|length }}</div>
+    {% for m in members %}
+      <div class="member">
+        <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
+        {{ m['full_name'] }}
+        <small class="ms-auto" title="{{ roles[m['role']] }}">{{ roles[m['role']].split()[0] }}</small>
+      </div>
+    {% endfor %}
+
+    {% if code %}
+      <div class="side-title">Invite your team</div>
+      <div class="invite-code">{{ code }}</div>
+      <p class="small text-muted mb-0">Innovators enter this code on the Spaces page to join as 🛠 members.</p>
+    {% endif %}
+  </aside>
+
+  <section class="space-main">
+    <header class="space-head">
+      <h5 class="mb-0">{{ '🔒' if current['team_only'] else '#' }} {{ current['name'] }}</h5>
+      {% if current['team_only'] %}<small class="text-muted">Only the team can see this channel</small>{% endif %}
+    </header>
+    <div class="chat-empty">
+      <div class="orb">💬</div>
+      <h5 class="mb-0">Welcome to #{{ current['name'] }}</h5>
+      <p class="mb-0">This is the start of the channel. Messages arrive in UC-8.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}
