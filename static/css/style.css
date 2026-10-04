@@ -461,3 +461,82 @@
   outline: 2px solid #7c3aed;
   outline-offset: 2px;
 }
+
+
+/* ---------- Project spaces (Discord-style) ---------- */
+.space-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
+  min-height: 70vh;
+}
+.space-side,
+.space-main {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 2.5rem rgba(91, 33, 182, 0.12);
+}
+.space-side { padding: 1.25rem; }
+.space-main { display: flex; flex-direction: column; overflow: hidden; }
+.space-head {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+}
+.side-title {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6d28d9;
+}
+.channel {
+  display: block;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.6rem;
+  color: #4c1d95;
+  font-weight: 500;
+  text-decoration: none;
+}
+.channel:hover { color: #4c1d95; background: rgba(167, 139, 250, 0.18); }
+.channel.active { color: #fff; background: linear-gradient(90deg, #7c3aed, #db2777); }
+.member { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; font-size: 0.9rem; }
+.avatar-sm {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+}
+.invite-code {
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed rgba(124, 58, 237, 0.5);
+  border-radius: 0.6rem;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #5b21b6;
+  background: rgba(167, 139, 250, 0.2);
+}
+.chat-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  color: #6b6290;
+}
+@media (max-width: 767px) {
+  .space-layout { grid-template-columns: 1fr; }
+}
