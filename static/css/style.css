@@ -587,3 +587,10 @@
   border-top: 1px solid rgba(124, 58, 237, 0.15);
 }
 .channel .text-truncate { min-width: 0; }
+/* ---------- Profiles ---------- */
+.profile-wrap { max-width: 760px; }
+.profile-card { display: flex; gap: 1.5rem; align-items: center; }
+.avatar-lg { width: 5.5rem; height: 5.5rem; font-size: 2.2rem; flex-shrink: 0; }
+.profile-bio { white-space: pre-wrap; color: #2e1065; }
+a.user-chip { text-decoration: none; }
+a.user-chip:hover { color: #fff; background: rgba(255, 255, 255, 0.28); }

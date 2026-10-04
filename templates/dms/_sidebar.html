@@ -22,7 +22,7 @@
       <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="member">
         <span class="avatar-sm">{{ p['full_name'][0]|upper }}</span>
         <span class="lh-sm">
-          <span class="d-block fw-semibold">@{{ p['username'] }}</span>
+          <a class="d-block fw-semibold text-reset" href="{{ url_for('profiles.public', username=p['username']) }}">@{{ p['username'] }}</a>
           <small class="text-muted">{{ p['full_name'] }} · <span class="text-capitalize">{{ p['role'] }}</span></small>
         </span>
         <button class="btn btn-sm btn-link ms-auto p-0">Message</button>
