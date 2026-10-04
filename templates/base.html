@@ -18,13 +18,13 @@
       <a class="nav-pill" href="{{ url_for('dashboard.index') }}">Dashboard</a>
       <a class="nav-pill" href="{{ url_for('spaces.index') }}">Spaces</a>
       <a class="nav-pill" href="{{ url_for('dms.inbox') }}">Messages</a>
-      <div class="user-chip">
+      <a class="user-chip" href="{{ url_for('profiles.edit') }}" title="Your profile">
         <span class="avatar">{{ user['full_name'][0] | upper }}</span>
         <span class="d-none d-sm-block lh-sm">
           <span class="d-block fw-semibold">@{{ user['username'] }}</span>
           <small class="opacity-75">{{ user['full_name'] }} · <span class="text-capitalize">{{ user['role'] }}</span></small>
         </span>
-      </div>
+      </a>
       <a class="btn btn-sm btn-outline-light rounded-pill px-3"
          href="{{ url_for('auth.logout') }}">Logout</a>
     {% else %}

@@ -42,10 +42,18 @@ def add_usernames(conn):
         print(f"  {email} -> @{name}")
 
 
+def add_bio(conn):
+    """Older databases have no bio column: add it, empty for everyone."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
+    if columns and "bio" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''")
+
+
 def init_db():
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     add_usernames(conn)
+    add_bio(conn)
     with open(SCHEMA_PATH) as f:
         conn.executescript(f.read())
     conn.commit()

@@ -11,6 +11,7 @@ from interests.routes import interests_bp
 from spaces.routes import spaces_bp
 from dms.routes import dms_bp
 from reports.routes import reports_bp
+from profiles.routes import profiles_bp
 from extensions import socketio
 
 load_dotenv()
@@ -26,6 +27,7 @@ app.register_blueprint(interests_bp)
 app.register_blueprint(spaces_bp)
 app.register_blueprint(dms_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(profiles_bp)
 socketio.init_app(app)
 
 import spaces.chat  # registers the chat events

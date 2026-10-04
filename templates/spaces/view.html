@@ -32,7 +32,7 @@
       <div class="member">
         <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
         <span class="lh-sm">
-          <span class="d-block">@{{ m['username'] }}</span>
+          <a class="d-block text-reset" href="{{ url_for('profiles.public', username=m['username']) }}">@{{ m['username'] }}</a>
           <small class="text-muted">{{ m['full_name'] }}</small>
         </span>
         <small class="ms-auto" title="{{ roles[m['role']] }}">{{ roles[m['role']].split()[0] }}</small>

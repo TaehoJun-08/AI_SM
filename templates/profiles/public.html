@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block title %}@{{ person['username'] }} · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<div class="profile-wrap">
+  {% include "profiles/_card.html" %}
+  {% if person['id'] == user['id'] %}
+    <a class="btn btn-magic" href="{{ url_for('profiles.edit') }}">✏️ Edit profile</a>
+  {% else %}
+    <form method="POST" action="{{ url_for('dms.start', user_id=person['id']) }}">
+      <button class="btn btn-magic">💬 Message @{{ person['username'] }}</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
