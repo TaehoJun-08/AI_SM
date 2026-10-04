@@ -27,8 +27,18 @@ def innovator():
     ).fetchall()
     matches = matches_for_projects(projects)
     matched = sum(1 for m in matches.values() if m)
+    interests = get_db().execute(
+        """SELECT i.id, i.status, p.title, u.full_name, u.email, s.organisation
+           FROM interests i
+           JOIN projects p ON p.id = i.project_id
+           JOIN users u ON u.id = i.sponsor_id
+           LEFT JOIN sponsor_profiles s ON s.user_id = i.sponsor_id
+           WHERE p.innovator_id = ? AND i.status != 'declined'
+           ORDER BY i.status DESC, i.id DESC""",
+        (session["user_id"],),
+    ).fetchall()
     return render_template("dashboard/innovator.html", projects=projects,
-                           matches=matches, matched=matched)
+                           matches=matches, matched=matched, interests=interests)
     
 @dashboard_bp.route("/sponsor")
 @login_required
@@ -42,6 +52,19 @@ def sponsor():
         "SELECT domain FROM sponsor_domains WHERE user_id = ? ORDER BY domain",
         (session["user_id"],),
     ).fetchall()
+    sent = {
+        r["project_id"]: r
+        for r in db.execute(
+            """SELECT i.project_id, i.status, p.title, u.full_name, u.email
+               FROM interests i
+               JOIN projects p ON p.id = i.project_id
+               JOIN users u ON u.id = p.innovator_id
+               WHERE i.sponsor_id = ?
+               ORDER BY i.id DESC""",
+            (session["user_id"],),
+        )
+    }
     return render_template("dashboard/sponsor.html", profile=profile,
                            domains=[r["domain"] for r in rows],
-                           matches=matches_for_sponsor(session["user_id"]))
+                           matches=matches_for_sponsor(session["user_id"]),
+                           sent=sent, connected=any(r["status"] == "accepted" for r in sent.values()))

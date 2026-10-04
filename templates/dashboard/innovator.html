@@ -42,6 +42,35 @@
   </div>
 </div>
 
+{% if interests %}
+<h6 class="journey-title">Interested sponsors</h6>
+<div class="row g-4">
+  {% for i in interests %}
+  <div class="col-md-6 col-lg-4">
+    <div class="magic-card h-100">
+      <span class="tag {{ 'tag-pink' if i['status'] == 'pending' }} d-inline-block mb-3">
+        {{ '⏳ New request' if i['status'] == 'pending' else '🎉 Connected' }}
+      </span>
+      <h5>{{ i['organisation'] or i['full_name'] }}</h5>
+      <p class="small">{{ i['full_name'] }} is interested in <strong>{{ i['title'] }}</strong></p>
+      {% if i['status'] == 'pending' %}
+        <div class="d-flex align-items-center gap-2">
+          <form method="POST" action="{{ url_for('interests.respond', interest_id=i['id'], action='accept') }}">
+            <button class="btn btn-magic btn-sm">✓ Accept</button>
+          </form>
+          <form method="POST" action="{{ url_for('interests.respond', interest_id=i['id'], action='decline') }}">
+            <button class="btn btn-sm btn-link text-muted">✕ Decline</button>
+          </form>
+        </div>
+      {% else %}
+        <a class="small fw-semibold" href="mailto:{{ i['email'] }}">✉️ {{ i['email'] }}</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if projects %}
 <h6 class="journey-title">My projects</h6>
 <div class="row g-4">

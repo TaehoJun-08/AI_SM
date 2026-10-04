@@ -35,3 +35,13 @@ CREATE TABLE IF NOT EXISTS sponsor_domains (
     domain  TEXT    NOT NULL,
     PRIMARY KEY (user_id, domain)
 );
+
+CREATE TABLE IF NOT EXISTS interests (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    sponsor_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    status      TEXT    NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'accepted', 'declined')),
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    UNIQUE (sponsor_id, project_id)
+);
