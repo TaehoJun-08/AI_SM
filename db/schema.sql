@@ -76,3 +76,25 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages (channel_id, id);
+
+CREATE TABLE IF NOT EXISTS dm_threads (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_a       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_b       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requested_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status       TEXT    NOT NULL DEFAULT 'pending'
+                 CHECK (status IN ('pending', 'accepted', 'declined')),
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    CHECK (user_a < user_b),
+    UNIQUE (user_a, user_b)
+);
+
+CREATE TABLE IF NOT EXISTS dm_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id  INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
+    sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 2000),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_messages_thread ON dm_messages (thread_id, id);

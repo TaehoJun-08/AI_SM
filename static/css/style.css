@@ -577,3 +577,13 @@
   padding: 0.9rem 1.25rem;
   border-top: 1px solid rgba(124, 58, 237, 0.15);
 }
+
+/* ---------- Direct messages ---------- */
+.chat-note {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  color: #5b21b6;
+  background: rgba(167, 139, 250, 0.15);
+  border-top: 1px solid rgba(124, 58, 237, 0.15);
+}
+.channel .text-truncate { min-width: 0; }

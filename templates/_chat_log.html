@@ -1,0 +1,18 @@
+<div class="chat-log" id="chat-log" data-me="{{ user['id'] }}" data-room="{{ room_id }}"
+     data-key="{{ room_key }}" data-join="{{ join_event }}" data-send="{{ send_event }}">
+  {% for m in messages %}
+    <div class="msg {{ 'mine' if m['sender_id'] == user['id'] }}">
+      <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
+      <div>
+        <div class="msg-meta"><strong>{{ m['full_name'] }}</strong> <small>{{ m['created_at'][11:16] }}</small></div>
+        <div class="msg-body">{{ m['body'] }}</div>
+      </div>
+    </div>
+  {% else %}
+    <div class="chat-empty" id="chat-empty">
+      <div class="orb">💬</div>
+      <h5 class="mb-0">{{ empty_title }}</h5>
+      <p class="mb-0">This is the very beginning. Say hi! 👋</p>
+    </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block title %}Messages · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<div class="space-layout mb-5">
+  {% include "dms/_sidebar.html" %}
+  <section class="space-main">
+    <div class="chat-empty">
+      <div class="orb">💌</div>
+      <h5 class="mb-0">Your messages</h5>
+      <p class="mb-0">Pick a chat, or search for someone to start a new one.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

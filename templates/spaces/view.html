@@ -33,6 +33,11 @@
         <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
         {{ m['full_name'] }}
         <small class="ms-auto" title="{{ roles[m['role']] }}">{{ roles[m['role']].split()[0] }}</small>
+        {% if m['id'] != user['id'] %}
+          <form method="POST" action="{{ url_for('dms.start', user_id=m['id']) }}">
+            <button class="btn btn-sm btn-link p-0" title="Message {{ m['full_name'] }}">💬</button>
+          </form>
+        {% endif %}
       </div>
     {% endfor %}
 
@@ -48,23 +53,10 @@
       <h5 class="mb-0">{{ '🔒' if current['team_only'] else '#' }} {{ current['name'] }}</h5>
       {% if current['team_only'] %}<small class="text-muted">Only the team can see this channel</small>{% endif %}
     </header>
-    <div class="chat-log" id="chat-log">
-      {% for m in messages %}
-        <div class="msg {{ 'mine' if m['sender_id'] == user['id'] }}">
-          <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
-          <div>
-            <div class="msg-meta"><strong>{{ m['full_name'] }}</strong> <small>{{ m['created_at'][11:16] }}</small></div>
-            <div class="msg-body">{{ m['body'] }}</div>
-          </div>
-        </div>
-      {% else %}
-        <div class="chat-empty" id="chat-empty">
-          <div class="orb">💬</div>
-          <h5 class="mb-0">Welcome to #{{ current['name'] }}</h5>
-          <p class="mb-0">This is the start of the channel. Say hi! 👋</p>
-        </div>
-      {% endfor %}
-    </div>
+    {% with room_id=current['id'], room_key='channel_id', join_event='join',
+            send_event='send', empty_title='Welcome to #' ~ current['name'] %}
+      {% include "_chat_log.html" %}
+    {% endwith %}
     <form class="chat-form" id="chat-form">
       <input id="chat-input" class="form-control" placeholder="Message #{{ current['name'] }}"
              maxlength="2000" autocomplete="off">
@@ -73,39 +65,5 @@
   </section>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-<script>
-  const channelId = {{ current['id'] }};
-  const myId = {{ user['id'] }};
-  const log = document.getElementById("chat-log");
-  const form = document.getElementById("chat-form");
-  const input = document.getElementById("chat-input");
-  const socket = io();
-
-  function addMessage(m) {
-    document.getElementById("chat-empty")?.remove();
-    const row = document.createElement("div");
-    row.className = m.sender_id === myId ? "msg mine" : "msg";
-    row.innerHTML = '<span class="avatar-sm"></span><div><div class="msg-meta">'
-      + '<strong></strong> <small></small></div><div class="msg-body"></div></div>';
-    row.querySelector(".avatar-sm").textContent = m.full_name[0].toUpperCase();
-    row.querySelector("strong").textContent = m.full_name;
-    row.querySelector("small").textContent = m.created_at.slice(11, 16);
-    row.querySelector(".msg-body").textContent = m.body;
-    log.appendChild(row);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  socket.on("connect", () => socket.emit("join", { channel_id: channelId }));
-  socket.on("message", addMessage);
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const body = input.value.trim();
-    if (!body) return;
-    socket.emit("send", { channel_id: channelId, body: body });
-    input.value = "";
-  });
-
-  log.scrollTop = log.scrollHeight;
-</script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}
