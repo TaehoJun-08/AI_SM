@@ -21,14 +21,23 @@
       {% else %}
         <p>You haven't submitted any projects yet.</p>
       {% endif %}
-      <a class="btn btn-magic" href="{{ url_for('projects.new') }}">+ Submit a project</a>  
+      <a class="btn btn-magic" href="{{ url_for('projects.new') }}">+ Submit a project</a>
     </div>
   </div>
   <div class="col-md-6">
     <div class="magic-card h-100">
       <div class="orb orb-pink">✨</div>
       <h5>Sponsor matches</h5>
-      <p class="mb-0">Matches will appear here once you add a project.</p>
+      {% if matched %}
+        <p class="mb-0">
+          ✨ {{ matched }} of your {{ projects|length }} project{{ 's' if projects|length != 1 }}
+          {{ 'has' if matched == 1 else 'have' }} sponsor matches. See each card below.
+        </p>
+      {% elif projects %}
+        <p class="mb-0">No sponsors match your projects yet. Check back soon!</p>
+      {% else %}
+        <p class="mb-0">Matches will appear here once you add a project.</p>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -46,6 +55,19 @@
       <h5>{{ p['title'] }}</h5>
       <p>{{ p['summary'] }}</p>
       <div class="funding">₹{{ "{:,}".format(p['funding_needed']) }} <small>needed</small></div>
+
+      {% if matches[p['id']] %}
+        <div class="small fw-semibold mt-3 mb-1">✨ Top sponsor matches</div>
+        {% for m in matches[p['id']] %}
+          <div class="d-flex justify-content-between align-items-center small mb-1">
+            <span>{{ m.sponsor['organisation'] }} <span class="text-muted">· {{ m.sponsor['full_name'] }}</span></span>
+            <span class="tag tag-pink">{{ m.score }}%</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="small text-muted mt-3 mb-0">No sponsor matches yet.</p>
+      {% endif %}
+
       <div class="d-flex align-items-center gap-3 mt-3">
         <a class="small fw-semibold" href="{{ url_for('projects.edit', project_id=p['id']) }}">✏️ Edit</a>
         <form method="POST" action="{{ url_for('projects.delete', project_id=p['id']) }}"
@@ -65,6 +87,8 @@
   <div class="step {{ 'done' if projects }}">
     <span>{{ '✓' if projects else '2' }}</span> Submit your first project
   </div>
-  <div class="step"><span>3</span> Get matched with sponsors</div>
+  <div class="step {{ 'done' if matched }}">
+    <span>{{ '✓' if matched else '3' }}</span> Get matched with sponsors
+  </div>
 </div>
 {% endblock %}

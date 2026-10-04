@@ -19,3 +19,19 @@ CREATE TABLE IF NOT EXISTS projects (
     funding_needed INTEGER NOT NULL CHECK (funding_needed > 0),
     created_at     TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS sponsor_profiles (
+    user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    organisation TEXT    NOT NULL,
+    bio          TEXT    NOT NULL,
+    budget_min   INTEGER NOT NULL CHECK (budget_min > 0),
+    budget_max   INTEGER NOT NULL,
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    CHECK (budget_max >= budget_min)
+);
+
+CREATE TABLE IF NOT EXISTS sponsor_domains (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    domain  TEXT    NOT NULL,
+    PRIMARY KEY (user_id, domain)
+);
