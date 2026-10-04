@@ -7,6 +7,7 @@ from auth.routes import auth_bp
 from dashboard.routes import dashboard_bp
 from projects.routes import projects_bp
 from sponsors.routes import sponsors_bp
+from interests.routes import interests_bp
 
 load_dotenv()
 
@@ -17,6 +18,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(sponsors_bp)
+app.register_blueprint(interests_bp)
 
 @app.context_processor
 def inject_user():
