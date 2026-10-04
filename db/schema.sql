@@ -66,3 +66,13 @@ CREATE TABLE IF NOT EXISTS channels (
     created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
     UNIQUE (project_id, name)
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 2000),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages (channel_id, id);

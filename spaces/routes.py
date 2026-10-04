@@ -107,11 +107,20 @@ def view(project_id, channel_id=None):
              WHERE i.project_id = :pid AND i.status = 'accepted'""",
         {"pid": project_id},
     ).fetchall()
+    messages = db.execute(
+        """SELECT * FROM (
+               SELECT m.id, m.body, m.created_at, m.sender_id, u.full_name
+               FROM messages m JOIN users u ON u.id = m.sender_id
+               WHERE m.channel_id = ? ORDER BY m.id DESC LIMIT 50
+           ) ORDER BY id""",
+        (current["id"],),
+    ).fetchall()
     invite = db.execute("SELECT code FROM project_invites WHERE project_id = ?",
                         (project_id,)).fetchone()
     return render_template("spaces/view.html", project=project, role=role,
                            channels=channels, current=current, members=members,
-                           code=invite["code"] if role == "owner" else None, roles=ROLES)  
+                            code=invite["code"] if role == "owner" else None, roles=ROLES,
+                           messages=messages)
 
 
 @spaces_bp.route("/<int:project_id>/channels", methods=["POST"])
