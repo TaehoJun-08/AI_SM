@@ -9,6 +9,7 @@ from projects.routes import projects_bp
 from sponsors.routes import sponsors_bp
 from interests.routes import interests_bp
 from spaces.routes import spaces_bp
+from dms.routes import dms_bp
 from extensions import socketio
 
 load_dotenv()
@@ -22,9 +23,11 @@ app.register_blueprint(projects_bp)
 app.register_blueprint(sponsors_bp)
 app.register_blueprint(interests_bp)
 app.register_blueprint(spaces_bp)
+app.register_blueprint(dms_bp)
 socketio.init_app(app)
 
 import spaces.chat  # registers the chat events
+import dms.chat  # registers the DM events
 
 @app.context_processor
 def inject_user():
