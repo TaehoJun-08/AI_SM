@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, request, url_for
-from db import close_db, get_db
+from db import close_db, get_db, init_db
 from helpers import current_user
 from auth.routes import auth_bp
 from feed.routes import feed_bp
@@ -17,7 +17,8 @@ from extensions import socketio
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+# A fresh clone has no .env yet, so fall back to a development key (set SECRET_KEY in .env for real use).
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY") or "dev-only-secret-key-change-me"
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # all files of one post together
 app.teardown_appcontext(close_db)
 app.register_blueprint(auth_bp)
@@ -51,4 +52,5 @@ def too_large(error):
 
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    init_db()  # creates the database on a fresh clone (safe to run every time)
+    socketio.run(app, host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=True)
