@@ -21,8 +21,8 @@
       <div class="user-chip">
         <span class="avatar">{{ user['full_name'][0] | upper }}</span>
         <span class="d-none d-sm-block lh-sm">
-          <span class="d-block fw-semibold">{{ user['full_name'] }}</span>
-          <small class="text-capitalize opacity-75">{{ user['role'] }}</small>
+          <span class="d-block fw-semibold">@{{ user['username'] }}</span>
+          <small class="opacity-75">{{ user['full_name'] }} · <span class="text-capitalize">{{ user['role'] }}</span></small>
         </span>
       </div>
       <a class="btn btn-sm btn-outline-light rounded-pill px-3"

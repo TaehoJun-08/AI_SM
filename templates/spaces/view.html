@@ -31,11 +31,14 @@
     {% for m in members %}
       <div class="member">
         <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
-        {{ m['full_name'] }}
+        <span class="lh-sm">
+          <span class="d-block">@{{ m['username'] }}</span>
+          <small class="text-muted">{{ m['full_name'] }}</small>
+        </span>
         <small class="ms-auto" title="{{ roles[m['role']] }}">{{ roles[m['role']].split()[0] }}</small>
         {% if m['id'] != user['id'] %}
           <form method="POST" action="{{ url_for('dms.start', user_id=m['id']) }}">
-            <button class="btn btn-sm btn-link p-0" title="Message {{ m['full_name'] }}">💬</button>
+            <button class="btn btn-sm btn-link p-0" title="Message @{{ m['username'] }}">💬</button>
           </form>
         {% endif %}
       </div>

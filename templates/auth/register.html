@@ -8,7 +8,7 @@
   <div class="row g-2 mb-3">
     <div class="col-6">
       <input type="radio" class="btn-check" name="role" id="role-innovator"
-             value="innovator" checked>
+             value="innovator" {{ 'checked' if form.get('role', 'innovator') == 'innovator' }}>
       <label class="btn btn-outline-primary w-100 py-2" for="role-innovator">
         💡 Innovator
         <small class="d-block text-body-secondary">I have an idea</small>
@@ -16,7 +16,7 @@
     </div>
     <div class="col-6">
       <input type="radio" class="btn-check" name="role" id="role-sponsor"
-             value="sponsor">
+             value="sponsor" {{ 'checked' if form.get('role') == 'sponsor' }}>
       <label class="btn btn-outline-primary w-100 py-2" for="role-sponsor">
         🤝 Sponsor
         <small class="d-block text-body-secondary">I want to fund</small>
@@ -25,11 +25,21 @@
   </div>
   <div class="mb-3">
     <label class="form-label">Full name</label>
-    <input name="full_name" class="form-control" required>
+    <input name="full_name" class="form-control" value="{{ form.get('full_name', '') }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Username</label>
+    <div class="input-group">
+      <span class="input-group-text">@</span>
+      <input name="username" class="form-control" placeholder="e.g. surbhi_k" maxlength="20"
+             pattern="[A-Za-z0-9_.]{3,20}" value="{{ form.get('username', '') }}" required>
+    </div>
+    <div class="form-text">3-20 characters: letters, numbers, _ and . People find you by this.</div>
   </div>
   <div class="mb-3">
     <label class="form-label">Email</label>
-    <input name="email" type="email" class="form-control" placeholder="you@example.com" required>
+    <input name="email" type="email" class="form-control" placeholder="you@example.com"
+           value="{{ form.get('email', '') }}" required>
   </div>
   <div class="mb-4">
     <label class="form-label">Password</label>
