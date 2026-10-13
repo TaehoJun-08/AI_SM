@@ -1,46 +1,51 @@
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
 {% macro thread_link(t) %}
-  <a class="channel d-flex align-items-center gap-2 {{ 'active' if thread and thread['id'] == t['id'] }}"
+  <a class="dm-row {{ 'active' if thread and thread['id'] == t['id'] }}"
      href="{{ url_for('dms.thread', thread_id=t['id']) }}">
-    <span class="avatar-sm">{{ t['other_name'][0]|upper }}</span>
-    <span class="text-truncate">
-      <span class="d-block">@{{ t['other_username'] }}</span>
-      <small class="opacity-75">{{ t['last_body'] or 'No messages yet' }}</small>
+    {{ avatar(t['other_name'], t['other_avatar']) }}
+    <span class="dm-row-text">
+      <b>{{ t['other_username'] }}</b>
+      <small class="muted">{{ t['last_body'] or 'No messages yet' }}</small>
     </span>
   </a>
 {% endmacro %}
 
-<aside class="space-side">
-  <h5 class="mb-2">💬 Messages</h5>
-  <form method="GET" action="{{ url_for('dms.inbox') }}">
-    <input name="q" value="{{ q }}" class="form-control form-control-sm"
-           placeholder="🔍 Search @username or name">
+<aside class="dm-list">
+  <div class="dm-list-head">
+    <b>{{ user['username'] }}</b>
+  </div>
+  <form method="GET" action="{{ url_for('dms.inbox') }}" class="dm-search">
+    {{ icon('search', 16) }}
+    <input name="q" value="{{ q }}" placeholder="Search @username or name" autocomplete="off">
   </form>
 
-  {% if people %}
-    <div class="side-title">People</div>
-    {% for p in people %}
-      <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="member">
-        <span class="avatar-sm">{{ p['full_name'][0]|upper }}</span>
-        <span class="lh-sm">
-          <a class="d-block fw-semibold text-reset" href="{{ url_for('profiles.public', username=p['username']) }}">@{{ p['username'] }}</a>
-          <small class="text-muted">{{ p['full_name'] }} · <span class="text-capitalize">{{ p['role'] }}</span></small>
-        </span>
-        <button class="btn btn-sm btn-link ms-auto p-0">Message</button>
-      </form>
+  <div class="dm-scroll">
+    {% if people %}
+      <div class="side-title">People</div>
+      {% for p in people %}
+        <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="dm-row">
+          {{ avatar(p['full_name'], p['avatar'], href=url_for('profiles.public', username=p['username'])) }}
+          <span class="dm-row-text">
+            <b>{{ p['username'] }}</b><small class="muted">{{ p['full_name'] }}</small>
+          </span>
+          <button class="link-btn ms-auto">Message</button>
+        </form>
+      {% endfor %}
+    {% elif q %}
+      <p class="small muted px-3 mt-3">Nobody found for "{{ q }}".</p>
+    {% endif %}
+
+    {% if requests %}
+      <div class="side-title">Requests · {{ requests|length }}</div>
+      {% for t in requests %}{{ thread_link(t) }}{% endfor %}
+    {% endif %}
+
+    <div class="side-title">Messages</div>
+    {% for t in chats %}
+      {{ thread_link(t) }}
+    {% else %}
+      <p class="small muted px-3">No chats yet. Search for someone above.</p>
     {% endfor %}
-  {% elif q %}
-    <p class="small text-muted mt-2 mb-0">Nobody found for "{{ q }}".</p>
-  {% endif %}
-
-  {% if requests %}
-    <div class="side-title">Requests · {{ requests|length }}</div>
-    {% for t in requests %}{{ thread_link(t) }}{% endfor %}
-  {% endif %}
-
-  <div class="side-title">Chats</div>
-  {% for t in chats %}
-    {{ thread_link(t) }}
-  {% else %}
-    <p class="small text-muted mb-0">No chats yet. Search for someone above.</p>
-  {% endfor %}
+  </div>
 </aside>

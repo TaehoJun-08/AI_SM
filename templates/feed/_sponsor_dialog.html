@@ -1,0 +1,23 @@
+{% from "_icons.html" import icon %}
+<dialog id="sponsor-dialog" class="modal-card">
+  <form method="POST" id="sponsor-form">
+    <div class="modal-head">
+      <h5 class="mb-0" id="sponsor-heading">Sponsor this project</h5>
+      <button type="button" class="icon-btn" data-close-dialog aria-label="Close">{{ icon('x', 20) }}</button>
+    </div>
+    <p class="muted mb-3" id="sponsor-title"></p>
+    <label class="form-label fw-semibold" for="sponsor-amount">How much would you like to give?</label>
+    <div class="input-group mb-3">
+      <span class="input-group-text">₹</span>
+      <input id="sponsor-amount" name="amount" type="number" min="1" step="1" class="form-control"
+             placeholder="50000" required>
+    </div>
+    <label class="form-label fw-semibold" for="sponsor-message">Message <span class="muted">(optional)</span></label>
+    <textarea id="sponsor-message" name="message" rows="3" maxlength="300" class="form-control mb-3"
+              placeholder="Why do you want to back this?"></textarea>
+    <button class="btn btn-primary w-100" id="sponsor-submit">Send offer</button>
+    <button type="submit" id="sponsor-withdraw" class="btn btn-outline-danger w-100 mt-2" hidden formnovalidate
+            onclick="return confirm('Withdraw this offer? If the owner already accepted it, they will be told in your chat.')">Withdraw my offer</button>
+    <p class="muted small mt-2 mb-0">The owner can accept or decline. If they accept, a chat opens between you two.</p>
+  </form>
+</dialog>

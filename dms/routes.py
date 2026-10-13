@@ -1,7 +1,9 @@
 from flask import (Blueprint, render_template, request,
-                   redirect, url_for, flash, session, abort)
+                   redirect, url_for, flash, session, abort, jsonify)
 from db import get_db
 from helpers import login_required
+from extensions import socketio
+from chatmedia import collect
 
 dms_bp = Blueprint("dms", __name__, url_prefix="/messages")
 
@@ -24,9 +26,11 @@ def can_send(thread, user_id):
 def load_threads(me):
     """Split my conversations into (chats, requests waiting for my answer)."""
     rows = get_db().execute(
-        """SELECT t.*, u.full_name AS other_name, u.username AS other_username,
-                  (SELECT body FROM dm_messages WHERE thread_id = t.id
-                   ORDER BY id DESC LIMIT 1) AS last_body
+        """SELECT t.*, u.full_name AS other_name, u.username AS other_username, u.avatar AS other_avatar,
+                  (SELECT COALESCE(NULLIF(body, ''), CASE attach_type
+                              WHEN 'image' THEN '📷 Photo' WHEN 'video' THEN '🎥 Video'
+                              WHEN 'audio' THEN '🎵 Audio' ELSE '📎 File' END)
+                   FROM dm_messages WHERE thread_id = t.id ORDER BY id DESC LIMIT 1) AS last_body
            FROM dm_threads t
            JOIN users u ON u.id = CASE WHEN t.user_a = :me THEN t.user_b ELSE t.user_a END
            WHERE :me IN (t.user_a, t.user_b)
@@ -40,6 +44,28 @@ def load_threads(me):
     return chats, requests
 
 
+DM_MSG = """
+    SELECT m.id, m.body, m.created_at, m.sender_id, m.edited, m.reply_to, u.full_name, u.avatar,
+           m.attachment, m.attach_type, m.attach_name, ru.username AS reply_name,
+           COALESCE(NULLIF(rm.body, ''), CASE rm.attach_type WHEN 'image' THEN '📷 Photo' WHEN 'video' THEN '🎥 Video' WHEN 'audio' THEN '🎵 Audio' ELSE '📎 File' END) AS reply_text
+    FROM dm_messages m JOIN users u ON u.id = m.sender_id
+    LEFT JOIN dm_messages rm ON rm.id = m.reply_to LEFT JOIN users ru ON ru.id = rm.sender_id
+"""
+
+
+def dm_message(db, message_id):
+    """One message as a dict, in the shape the chat page expects."""
+    return dict(db.execute(f"{DM_MSG} WHERE m.id = ?", (message_id,)).fetchone())
+
+
+def valid_reply(db, thread_id, reply_id):
+    """The id to store as reply_to: only a message from this same chat counts."""
+    if not isinstance(reply_id, int):
+        return None
+    row = db.execute("SELECT id FROM dm_messages WHERE id = ? AND thread_id = ?", (reply_id, thread_id)).fetchone()
+    return row["id"] if row else None
+
+
 def sidebar(me):
     """Everything the shared inbox sidebar needs."""
     chats, requests = load_threads(me)
@@ -48,7 +74,7 @@ def sidebar(me):
     if q:
         term = q.lstrip("@")
         people = get_db().execute(
-            """SELECT id, full_name, username, role FROM users
+            """SELECT id, full_name, username, avatar FROM users
                WHERE (username LIKE :like OR full_name LIKE :like) AND id != :me
                ORDER BY username = :term DESC, username LIMIT 10""",
             {"like": f"%{term}%", "term": term, "me": me},
@@ -70,6 +96,11 @@ def start(user_id):
     if user_id == me or not db.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone():
         abort(404)
     a, b = min(me, user_id), max(me, user_id)
+    existing = db.execute("SELECT 1 FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
+    target = db.execute("SELECT dm_policy, username FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not existing and target["dm_policy"] == "none":
+        flash(f"@{target['username']} isn't accepting new messages right now.")
+        return redirect(request.referrer or url_for("dms.inbox"))
     db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by) VALUES (?, ?, ?)",
                (a, b, me))
     db.execute("""UPDATE dm_threads SET status = 'pending', requested_by = ?
@@ -90,14 +121,10 @@ def thread(thread_id):
         abort(404)
     db = get_db()
     other_id = t["user_b"] if t["user_a"] == me else t["user_a"]
-    other = db.execute("SELECT id, full_name, username, role FROM users WHERE id = ?",
+    other = db.execute("SELECT id, full_name, username, avatar FROM users WHERE id = ?",
                        (other_id,)).fetchone()
     messages = db.execute(
-        """SELECT * FROM (
-               SELECT m.id, m.body, m.created_at, m.sender_id, u.full_name
-               FROM dm_messages m JOIN users u ON u.id = m.sender_id
-               WHERE m.thread_id = ? ORDER BY m.id DESC LIMIT 50
-           ) ORDER BY id""",
+        f"SELECT * FROM ({DM_MSG} WHERE m.thread_id = ? ORDER BY m.id DESC LIMIT 50) ORDER BY id",
         (thread_id,),
     ).fetchall()
     return render_template("dms/thread.html", thread=t, other=other, messages=messages,
@@ -120,3 +147,26 @@ def respond(thread_id, action):
         return redirect(url_for("dms.thread", thread_id=thread_id))
     flash("Request declined.")
     return redirect(url_for("dms.inbox"))
+
+@dms_bp.route("/<int:thread_id>/attach", methods=["POST"])
+@login_required
+def attach(thread_id):
+    """Send photos, videos, audio, files or a GIF link into this chat."""
+    me = session["user_id"]
+    t = get_thread(thread_id, me)
+    if t is None or not can_send(t, me):
+        abort(403)
+    try:
+        items = collect(request)
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    db = get_db()
+    reply = valid_reply(db, thread_id, request.form.get("reply_to", type=int))
+    for path, kind, name in items:
+        cur = db.execute(
+            """INSERT INTO dm_messages (thread_id, sender_id, body, attachment, attach_type, attach_name, reply_to)
+               VALUES (?, ?, '', ?, ?, ?, ?)""", (thread_id, me, path, kind, name, reply))
+        reply = None                      # only the first file of a batch quotes the message
+        db.commit()
+        socketio.emit("message", dm_message(db, cur.lastrowid), to=f"dm-{thread_id}")
+    return jsonify(sent=len(items))

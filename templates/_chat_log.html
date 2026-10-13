@@ -1,18 +1,44 @@
-<div class="chat-log" id="chat-log" data-me="{{ user['id'] }}" data-room="{{ room_id }}"
-     data-key="{{ room_key }}" data-join="{{ join_event }}" data-send="{{ send_event }}">
+{% from "_icons.html" import icon %}
+{# Shared message list. Needs: messages, room_id, room_key, join_event, send_event, empty_title.
+   Optional: log_class ('dm-log' or 'srv-log'), empty_text, attach_url, delete_event, can_manage
+   (can_manage = may delete other people's messages). #}
+
+{% macro attachment(m) -%}
+{%- if m['attachment'] -%}
+{%- set src = m['attachment'] if m['attachment'].startswith('http') else url_for('static', filename=m['attachment']) -%}
+<div class="msg-att">
+{%- if m['attach_type'] == 'image' %}<a href="{{ src }}" target="_blank" rel="noopener"><img class="att-img" src="{{ src }}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>
+{%- elif m['attach_type'] == 'video' %}<video class="att-video" src="{{ src }}" controls preload="metadata"></video>
+{%- elif m['attach_type'] == 'audio' %}<audio class="att-audio" src="{{ src }}" controls preload="metadata"></audio>
+{%- else %}<a class="att-file" href="{{ src }}" download="{{ m['attach_name'] }}">{{ icon('paperclip', 18) }}<span>{{ m['attach_name'] }}</span></a>
+{%- endif %}</div>
+{%- endif -%}
+{%- endmacro %}
+
+<div class="chat-log {{ log_class|default('') }}" id="chat-log" data-me="{{ user['id'] }}" data-room="{{ room_id }}"
+     data-key="{{ room_key }}" data-join="{{ join_event }}" data-send="{{ send_event }}"
+     data-attach="{{ attach_url|default('') }}" data-delete="{{ delete_event|default('') }}" data-edit="{{ edit_event|default('') }}"
+     data-manage="{{ 1 if can_manage else 0 }}">
   {% for m in messages %}
-    <div class="msg {{ 'mine' if m['sender_id'] == user['id'] }}">
-      <span class="avatar-sm">{{ m['full_name'][0]|upper }}</span>
-      <div>
-        <div class="msg-meta"><strong>{{ m['full_name'] }}</strong> <small>{{ m['created_at'][11:16] }}</small></div>
-        <div class="msg-body">{{ m['body'] }}</div>
+    {% set prev = loop.previtem %}
+    {% set grouped = prev and prev['sender_id'] == m['sender_id'] %}
+    <div class="msg {{ 'mine' if m['sender_id'] == user['id'] }} {{ 'grouped' if grouped }}" data-sender="{{ m['sender_id'] }}" data-id="{{ m['id'] }}" data-author="{{ m['name'] or m['full_name'] }}"
+         data-can-delete="{{ 1 if (m['sender_id'] == user['id'] or can_manage) else 0 }}"
+         data-can-edit="{{ 1 if (m['sender_id'] == user['id'] and not m['attachment']) else 0 }}">
+      {% if m['avatar'] %}<span class="avatar-sm"><img src="{{ url_for('static', filename=m['avatar']) }}" alt=""></span>{% else %}<span class="avatar-sm" {% if m['color'] %}style="background: {{ m['color'] }}"{% endif %}>{{ (m['name'] or m['full_name'])[0]|upper }}</span>{% endif %}
+      <div class="msg-main">
+        <div class="msg-meta"><strong {% if m['color'] %}style="color: {{ m['color'] }}"{% endif %}>{{ m['name'] or m['full_name'] }}</strong>
+          <small>{{ m['created_at'][11:16] }}</small>{% if m['edited'] %} <small class="edited">(edited)</small>{% endif %}</div>
+        {% if m['reply_name'] %}<div class="msg-reply" data-reply="{{ m['reply_to'] }}"><b>{{ m['reply_name'] }}</b><span>{{ m['reply_text'] }}</span></div>{% endif %}
+        {% if m['body'] %}<div class="msg-body" title="{{ m['created_at'] }}">{{ m['body'] }}</div>{% endif %}
+        {{ attachment(m) }}
       </div>
     </div>
   {% else %}
     <div class="chat-empty" id="chat-empty">
-      <div class="orb">💬</div>
-      <h5 class="mb-0">{{ empty_title }}</h5>
-      <p class="mb-0">This is the very beginning. Say hi! 👋</p>
+      <div class="empty-ring">{{ empty_icon|default('💬') }}</div>
+      <h5 class="mb-1">{{ empty_title }}</h5>
+      <p class="muted mb-0">{{ empty_text|default('This is the very beginning. Say hi! 👋') }}</p>
     </div>
   {% endfor %}
 </div>

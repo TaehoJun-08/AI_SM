@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% from "_icons.html" import icon %}
+{% block title %}Search · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<div class="search-page">
+  <form method="GET" class="search-bar">
+    {{ icon('search', 20) }}
+    <input name="q" value="{{ q }}" placeholder="Search people, projects, domains" autocomplete="off">
+    {% if domain %}<input type="hidden" name="domain" value="{{ domain }}">{% endif %}
+  </form>
+
+  <div class="chips">
+    <a class="chip-link {{ 'on' if not domain }}" href="{{ url_for('feed.search', q=q) }}">All</a>
+    {% for d in domains %}
+      <a class="chip-link {{ 'on' if domain == d }}" href="{{ url_for('feed.search', q=q, domain=d) }}">{{ d }}</a>
+    {% endfor %}
+  </div>
+
+  {% if people %}
+    <h6 class="section-title">People</h6>
+    {% for p in people %}
+      <div class="row-card">
+        {{ avatar(p.full_name, p.avatar, href=url_for('profiles.public', username=p.username)) }}
+        <a class="flex-grow-1 text-reset text-decoration-none" href="{{ url_for('profiles.public', username=p.username) }}">
+          <b>{{ p.username }}</b><br><small class="muted">{{ p.full_name }}</small></a>
+        {% if p.id != user['id'] %}
+          <form method="POST" action="{{ url_for('dms.start', user_id=p.id) }}">
+            <button class="btn btn-sm btn-primary">Message</button></form>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <h6 class="section-title">{{ 'Projects' if q or domain else 'Explore' }}</h6>
+  {% if posts %}
+    {% include "feed/_grid.html" %}
+  {% else %}
+    <p class="muted">No projects found.</p>
+  {% endif %}
+</div>
+{% endblock %}

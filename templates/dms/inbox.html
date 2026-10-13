@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block body_class %}dashboard-page{% endblock %}
+{% from "_icons.html" import icon %}
 {% block title %}Messages · Sponsorship Matchmaker{% endblock %}
 {% block content %}
-<div class="space-layout mb-5">
+<div class="dm-shell">
   {% include "dms/_sidebar.html" %}
-  <section class="space-main">
+  <section class="dm-main">
     <div class="chat-empty">
-      <div class="orb">💌</div>
-      <h5 class="mb-0">Your messages</h5>
-      <p class="mb-0">Pick a chat, or search for someone to start a new one.</p>
+      <div class="empty-ring">{{ icon('send', 44) }}</div>
+      <h4 class="mb-1">Your messages</h4>
+      <p class="muted">Send private messages to anyone on the platform.</p>
     </div>
   </section>
 </div>

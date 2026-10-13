@@ -6,6 +6,13 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT    NOT NULL,
     role          TEXT    NOT NULL DEFAULT 'innovator',
     bio           TEXT    NOT NULL DEFAULT '',
+    avatar        TEXT,
+    theme         TEXT    NOT NULL DEFAULT 'system',
+    accent        TEXT    NOT NULL DEFAULT 'aurora',
+    calm          INTEGER NOT NULL DEFAULT 0,
+    autoplay      INTEGER NOT NULL DEFAULT 1,
+    dm_policy     TEXT    NOT NULL DEFAULT 'everyone',
+    accepts_offers INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
@@ -21,6 +28,8 @@ CREATE TABLE IF NOT EXISTS projects (
     stage          TEXT    NOT NULL
                    CHECK (stage IN ('idea', 'prototype', 'mvp', 'growth')),
     funding_needed INTEGER NOT NULL CHECK (funding_needed > 0),
+    media_path     TEXT,
+    media_type     TEXT    CHECK (media_type IN ('image', 'video')),
     created_at     TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
@@ -45,7 +54,9 @@ CREATE TABLE IF NOT EXISTS interests (
     sponsor_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     status      TEXT    NOT NULL DEFAULT 'pending'
-                CHECK (status IN ('pending', 'accepted', 'declined')),
+                CHECK (status IN ('pending', 'accepted', 'declined', 'withdrawn')),
+    amount      INTEGER,
+    message     TEXT    NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
     UNIQUE (sponsor_id, project_id)
 );
@@ -97,8 +108,121 @@ CREATE TABLE IF NOT EXISTS dm_messages (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     thread_id  INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
     sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 2000),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    body       TEXT    NOT NULL DEFAULT '' CHECK (length(body) <= 2000),
+    attachment TEXT,
+    attach_type TEXT CHECK (attach_type IN ('image', 'video', 'audio', 'file')),
+    attach_name TEXT,
+    reply_to INTEGER REFERENCES dm_messages(id) ON DELETE SET NULL,
+    edited INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    CHECK (length(body) > 0 OR attachment IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_dm_messages_thread ON dm_messages (thread_id, id);
+
+CREATE TABLE IF NOT EXISTS likes (
+    post_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (post_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 500),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, id);
+
+-- ---------- Servers (Discord-style) ----------
+
+CREATE TABLE IF NOT EXISTS servers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
+    icon        TEXT    NOT NULL DEFAULT '',
+    color       TEXT    NOT NULL DEFAULT '#5865f2',
+    description TEXT    NOT NULL DEFAULT '',
+    invite_code TEXT    NOT NULL UNIQUE,
+    is_public   INTEGER NOT NULL DEFAULT 1 CHECK (is_public IN (0, 1)),
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS server_roles (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    name      TEXT    NOT NULL,
+    color     TEXT    NOT NULL DEFAULT '#99aab5',
+    is_admin  INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
+    position  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (server_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS server_members (
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS member_roles (
+    server_id INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+    role_id   INTEGER NOT NULL REFERENCES server_roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (server_id, user_id) REFERENCES server_members(server_id, user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS server_categories (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    name      TEXT    NOT NULL,
+    position  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS server_channels (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    category_id INTEGER REFERENCES server_categories(id) ON DELETE SET NULL,
+    name        TEXT    NOT NULL,
+    kind        TEXT    NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'announcement')),
+    topic       TEXT    NOT NULL DEFAULT '',
+    is_private  INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1)),
+    position    INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (server_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS channel_roles (
+    channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+    role_id    INTEGER NOT NULL REFERENCES server_roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (channel_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS server_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+    sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL DEFAULT '' CHECK (length(body) <= 2000),
+    attachment TEXT,
+    attach_type TEXT CHECK (attach_type IN ('image', 'video', 'audio', 'file')),
+    attach_name TEXT,
+    reply_to INTEGER REFERENCES server_messages(id) ON DELETE SET NULL,
+    edited INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    CHECK (length(body) > 0 OR attachment IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages (channel_id, id);
+
+CREATE TABLE IF NOT EXISTS post_media (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    path     TEXT    NOT NULL,
+    type     TEXT    NOT NULL CHECK (type IN ('image', 'video')),
+    position INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_media_post ON post_media (post_id, position);

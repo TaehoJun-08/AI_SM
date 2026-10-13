@@ -1,52 +1,146 @@
-from flask import Blueprint, redirect, url_for, flash, session, abort
+from flask import Blueprint, redirect, url_for, flash, session, abort, request
 from db import get_db
-from helpers import login_required, role_required
+from helpers import login_required
 
 interests_bp = Blueprint("interests", __name__, url_prefix="/interests")
 
 
-@interests_bp.route("/project/<int:project_id>", methods=["POST"])
+def go_back(fallback):
+    return redirect(request.referrer or fallback)
+
+
+@interests_bp.route("/post/<int:post_id>", methods=["POST"])
 @login_required
-@role_required("sponsor")
-def express(project_id):
+def offer(post_id):
+    """Anyone can offer to sponsor anyone else's post."""
+    me = session["user_id"]
     db = get_db()
-    project = db.execute(
-        "SELECT id FROM projects WHERE id = ?", (project_id,)
-    ).fetchone()
-    if project is None:
+    post = db.execute("""SELECT p.id, p.innovator_id, u.accepts_offers FROM projects p
+                         JOIN users u ON u.id = p.innovator_id WHERE p.id = ?""", (post_id,)).fetchone()
+    if post is None:
         abort(404)
-    result = db.execute(
-        "INSERT OR IGNORE INTO interests (sponsor_id, project_id) VALUES (?, ?)",
-        (session["user_id"], project_id),
-    )
-    db.commit()
-    if result.rowcount:
-        flash("Interest sent! 💌 The innovator will see it on their dashboard.")
+    amount = request.form.get("amount", "").strip()
+    message = request.form.get("message", "").strip()[:300]
+    if post["innovator_id"] == me:
+        flash("You can't sponsor your own project.")
+    elif not post["accepts_offers"]:
+        flash("This creator has paused sponsorship offers for now.")
+    elif not valid_amount(amount):
+        flash("Enter the amount you'd like to give as a whole number of rupees.")
     else:
-        flash("You've already shown interest in this project.")
-    return redirect(url_for("dashboard.sponsor"))
+        reopened = db.execute(
+            """UPDATE interests SET status = 'pending', amount = ?, message = ?
+               WHERE sponsor_id = ? AND project_id = ? AND status = 'withdrawn'""",
+            (int(amount), message, me, post_id)).rowcount
+        result = db.execute(
+            """INSERT OR IGNORE INTO interests (sponsor_id, project_id, amount, message)
+               VALUES (?, ?, ?, ?)""", (me, post_id, int(amount), message))
+        db.commit()
+        flash("Offer sent! 💌 You'll hear back in your activity." if result.rowcount or reopened
+              else "You've already made an offer on this project.")
+    return go_back(url_for("feed.post", post_id=post_id))
+
+
+def valid_amount(text):
+    return text.isdecimal() and 0 < int(text) <= 10_000_000_000
+
+
+@interests_bp.route("/<int:interest_id>/edit", methods=["POST"])
+@login_required
+def edit(interest_id):
+    """The sponsor changes the amount or message of their own offer (pending or accepted)."""
+    me = session["user_id"]
+    db = get_db()
+    offer = db.execute(
+        """SELECT i.*, p.title, p.innovator_id FROM interests i JOIN projects p ON p.id = i.project_id
+           WHERE i.id = ? AND i.sponsor_id = ? AND i.status IN ('pending', 'accepted')""", (interest_id, me)).fetchone()
+    if offer is None:
+        abort(404)
+    amount = request.form.get("amount", "").strip()
+    message = request.form.get("message", "").strip()[:300]
+    if not valid_amount(amount):
+        flash("Enter the amount as a whole number of rupees.")
+        return go_back(url_for("feed.activity"))
+    amount = int(amount)
+    if amount == offer["amount"] and message == offer["message"]:
+        flash("Nothing changed.")
+        return go_back(url_for("feed.activity"))
+    db.execute("UPDATE interests SET amount = ?, message = ? WHERE id = ?", (amount, message, interest_id))
+    if offer["status"] == "accepted" and amount != offer["amount"]:
+        # Tell the owner in their chat, so a change in funding is never a surprise.
+        a, b = min(me, offer["innovator_id"]), max(me, offer["innovator_id"])
+        thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
+        if thread:
+            verb = "increased" if amount > (offer["amount"] or 0) else "reduced"
+            db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+                       (thread["id"], me, f"✏️ I {verb} my sponsorship for “{offer['title']}”: "
+                                          f"₹{offer['amount']:,} → ₹{amount:,}."))
+    db.commit()
+    flash("Your offer was updated. ✏️")
+    return go_back(url_for("feed.activity"))
+
+
+@interests_bp.route("/<int:interest_id>/withdraw", methods=["POST"])
+@login_required
+def withdraw(interest_id):
+    """The sponsor takes back an offer. Pending ones simply disappear; an accepted
+    sponsorship is kept as 'withdrawn' and the owner is told in the chat."""
+    me = session["user_id"]
+    db = get_db()
+    offer = db.execute(
+        """SELECT i.*, p.title, p.innovator_id FROM interests i JOIN projects p ON p.id = i.project_id
+           WHERE i.id = ? AND i.sponsor_id = ? AND i.status IN ('pending', 'accepted')""",
+        (interest_id, me)).fetchone()
+    if offer is None:
+        abort(404)
+    if offer["status"] == "pending":
+        db.execute("DELETE FROM interests WHERE id = ?", (interest_id,))
+        flash("Offer withdrawn.")
+    else:
+        db.execute("UPDATE interests SET status = 'withdrawn' WHERE id = ?", (interest_id,))
+        a, b = min(me, offer["innovator_id"]), max(me, offer["innovator_id"])
+        thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
+        if thread:
+            db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+                       (thread["id"], me, f"↩️ I've withdrawn my sponsorship of ₹{offer['amount']:,} "
+                                          f"for “{offer['title']}”. Sorry for the change of plans."))
+        flash("Your sponsorship was withdrawn and the owner was told.")
+    db.commit()
+    return go_back(url_for("feed.activity"))
 
 
 @interests_bp.route("/<int:interest_id>/<action>", methods=["POST"])
 @login_required
-@role_required("innovator")
 def respond(interest_id, action):
+    """The post's owner accepts or declines an offer. Accepting opens a chat."""
     if action not in ("accept", "decline"):
         abort(404)
+    me = session["user_id"]
     db = get_db()
-    interest = db.execute(
-        """SELECT i.id FROM interests i
-           JOIN projects p ON p.id = i.project_id
+    offer = db.execute(
+        """SELECT i.*, p.title FROM interests i JOIN projects p ON p.id = i.project_id
            WHERE i.id = ? AND p.innovator_id = ? AND i.status = 'pending'""",
-        (interest_id, session["user_id"]),
+        (interest_id, me),
     ).fetchone()
-    if interest is None:
+    if offer is None:
         abort(404)
-    status = "accepted" if action == "accept" else "declined"
-    db.execute("UPDATE interests SET status = ? WHERE id = ?", (status, interest_id))
+    if action == "decline":
+        db.execute("UPDATE interests SET status = 'declined' WHERE id = ?", (interest_id,))
+        db.commit()
+        flash("Offer declined.")
+        return redirect(url_for("feed.activity"))
+
+    db.execute("UPDATE interests SET status = 'accepted' WHERE id = ?", (interest_id,))
+    a, b = min(me, offer["sponsor_id"]), max(me, offer["sponsor_id"])
+    db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by, status) "
+               "VALUES (?, ?, ?, 'accepted')", (a, b, offer["sponsor_id"]))
+    db.execute("UPDATE dm_threads SET status = 'accepted' WHERE user_a = ? AND user_b = ?", (a, b))
+    thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
+    note = f"💸 Sponsorship accepted for “{offer['title']}”: ₹{offer['amount']:,}."
+    if offer["message"]:
+        note += f" “{offer['message']}”"
+    db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+               (thread["id"], offer["sponsor_id"], note[:2000]))
     db.commit()
-    if status == "accepted":
-        flash("You're connected! 🎉 You can now see each other's email.")
-    else:
-        flash("Interest declined.")
-    return redirect(url_for("dashboard.innovator"))    
+    flash("You're connected! 🎉 Say hello.")
+    return redirect(url_for("dms.thread", thread_id=thread["id"]))

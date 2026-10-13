@@ -1,3 +1,9 @@
-{% for message in get_flashed_messages() %}
-  <div class="alert alert-info">{{ message }}</div>
-{% endfor %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash-stack">
+      {% for message in messages %}
+        <div class="alert alert-info">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

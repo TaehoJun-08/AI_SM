@@ -1,0 +1,40 @@
+{% from "_icons.html" import icon %}
+{# The toolbar in the message box: attach files, and one panel with all emoji and GIFs. #}
+<div class="chat-tools">
+  <input type="file" id="chat-file" multiple hidden>
+  <button type="button" class="tool-btn" id="btn-attach" title="Attach photos, videos, audio or files">{{ icon('paperclip', 20) }}</button>
+  <button type="button" class="tool-btn" id="btn-emoji" title="Emoji and GIFs">{{ icon('smile', 22) }}</button>
+
+  <div class="pop picker-pop" id="picker-panel" hidden>
+    <div class="picker-tabs">
+      <button type="button" class="on" data-tab="emoji">{{ icon('smile', 16) }} Emoji</button>
+      <button type="button" data-tab="gif"><b class="gif-badge">GIF</b></button>
+    </div>
+
+    <div class="picker-pane" data-pane="emoji">
+      <emoji-picker data-source="{{ url_for('static', filename='vendor/emoji-picker/data.json') }}"></emoji-picker>
+    </div>
+
+    <div class="picker-pane gif-pane" data-pane="gif" hidden data-key="{{ giphy_key }}">
+      {% if giphy_key %}
+        <input id="gif-q" placeholder="Search GIFs…" autocomplete="off">
+        <div id="gif-results" class="gif-grid"></div>
+        <small class="muted">Powered by GIPHY</small>
+      {% else %}
+        <div class="gif-setup">
+          <b>Send a GIF right now</b>
+          <p class="mb-2">Open <a href="https://giphy.com" target="_blank" rel="noopener">giphy.com</a> (or any site with GIFs),
+            copy a GIF's link, paste it in the message box and press Enter. It turns into a GIF.
+            You can also attach a <code>.gif</code> file with 📎, or drag it in.</p>
+          <b>Want search in here?</b>
+          <ol>
+            <li>Open <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">developers.giphy.com</a>, sign up and create an API key (a minute).</li>
+            <li>Add <code>GIPHY_API_KEY=your_key</code> to the <code>.env</code> file.</li>
+            <li>Restart the app. GIFs then appear right here.</li>
+          </ol>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script type="module" src="{{ url_for('static', filename='vendor/emoji-picker/index.js') }}"></script>

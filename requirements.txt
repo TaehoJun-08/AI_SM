@@ -4,3 +4,4 @@ fpdf2
 pytest
 flask-socketio
 simple-websocket
+Pillow

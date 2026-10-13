@@ -1,15 +1,42 @@
 {% extends "base.html" %}
-{% block body_class %}dashboard-page{% endblock %}
+{% from "_avatar.html" import avatar %}
+{% from "_icons.html" import icon %}
 {% block title %}@{{ person['username'] }} · Sponsorship Matchmaker{% endblock %}
 {% block content %}
-<div class="profile-wrap">
-  {% include "profiles/_card.html" %}
-  {% if person['id'] == user['id'] %}
-    <a class="btn btn-magic" href="{{ url_for('profiles.edit') }}">✏️ Edit profile</a>
+<div class="profile-page">
+  <header class="profile-head">
+    <span class="story-ring xl">{{ avatar(person['full_name'], person['avatar'], 'xl') }}</span>
+    <div class="profile-info">
+      <div class="profile-line">
+        <h2>{{ person['username'] }}</h2>
+        {% if person['id'] != user['id'] %}
+          <form method="POST" action="{{ url_for('dms.start', user_id=person['id']) }}">
+            <button class="btn btn-primary btn-sm">Message</button></form>
+          {% if not person['accepts_offers'] %}<span class="offer-state">Offers paused</span>{% endif %}
+        {% endif %}
+      </div>
+      <div class="profile-stats">
+        <span><b>{{ stats.posts }}</b> posts</span>
+        <span><b>{{ stats.sponsors }}</b> sponsors</span>
+      </div>
+      <div><b>{{ person['full_name'] }}</b></div>
+      {% if person['bio'] %}<div class="profile-bio">{{ person['bio'] }}</div>{% endif %}
+      <small class="muted">Joined {{ person['created_at'][:10] }}</small>
+    </div>
+  </header>
+
+  <div class="profile-tab">{{ icon('image', 14) }} POSTS</div>
+  {% if posts %}
+    {% include "feed/_grid.html" %}
   {% else %}
-    <form method="POST" action="{{ url_for('dms.start', user_id=person['id']) }}">
-      <button class="btn btn-magic">💬 Message @{{ person['username'] }}</button>
-    </form>
+    <div class="empty-state">
+      <div class="empty-ring">{{ icon('image', 40) }}</div>
+      <h4>No posts yet</h4>
+      {% if person['id'] == user['id'] %}
+        <p class="muted">Share your first project with the world.</p>
+        <a class="btn btn-primary" href="{{ url_for('projects.new') }}">Create a post</a>
+      {% endif %}
+    </div>
   {% endif %}
 </div>
 {% endblock %}

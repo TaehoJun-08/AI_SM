@@ -1,69 +1,141 @@
 {% extends "base.html" %}
-{% block body_class %}dashboard-page{% endblock %}
-{% block title %}{{ 'Edit' if project else 'Submit a' }} Project · Sponsorship Matchmaker{% endblock %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ 'Edit post' if project else 'Create new post' }} · Sponsorship Matchmaker{% endblock %}
 {% block content %}
-<section class="dash-hero">
-  <div>
-    <span class="role-pill">{{ '✏️ Editing' if project else '🚀 New project' }}</span>
-    <h1 class="hello">{{ 'Edit your project' if project else 'Share your idea' }}</h1>
-    <p class="dash-sub">Tell sponsors what you're building. The clearer it is, the better the match.</p>
-  </div>
-  <div class="crystal" aria-hidden="true">💡</div>
-</section>
+<div class="create-page">
+  <form method="POST" enctype="multipart/form-data" class="create-card">
+    <div class="create-head">
+      <b>{{ 'Edit post' if project else 'Create new post' }}</b>
+      <button class="link-btn">{{ 'Save' if project else 'Share' }}</button>
+    </div>
+    <div class="create-body">
+      <div class="drop-col">
+        {% if media %}
+          <div class="current-media">
+            <b class="small muted">Current photos and videos · tick to remove</b>
+            <div class="thumbs">
+              {% for m in media %}
+                <label class="thumb">
+                  {% if m.type == 'image' %}<img src="{{ url_for('static', filename=m.path) }}" alt="">
+                  {% else %}<video src="{{ url_for('static', filename=m.path) }}#t=0.1" muted preload="metadata"></video>{% endif %}
+                  <input type="checkbox" name="remove_media" value="{{ m.id }}">
+                  <span class="thumb-x">{{ icon('x', 16) }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
 
-<div class="magic-card form-card mb-5">
-  <form method="POST">
-    <div class="mb-3">
-      <label class="form-label fw-semibold" for="title">Project title</label>
-      <input id="title" name="title" class="form-control" maxlength="100"
-             value="{{ form.get('title', '') }}" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label fw-semibold" for="summary">One-line pitch</label>
-      <input id="summary" name="summary" class="form-control" maxlength="160"
-             placeholder="e.g. Low-cost soil sensors that tell farmers when to water"
-             value="{{ form.get('summary', '') }}" required>
-      <div class="form-text">Up to 160 characters.</div>
-    </div>
-    <div class="mb-3">
-      <label class="form-label fw-semibold" for="description">Description</label>
-      <textarea id="description" name="description" class="form-control" rows="5"
-                placeholder="What problem does it solve? Who is it for? What have you built so far?"
-                required>{{ form.get('description', '') }}</textarea>
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <label class="form-label fw-semibold" for="domain">Domain</label>
-        <select id="domain" name="domain" class="form-select" required>
-          <option value="">Choose…</option>
-          {% for d in domains %}
-            <option {% if form.get('domain') == d %}selected{% endif %}>{{ d }}</option>
-          {% endfor %}
-        </select>
+        <label class="drop" for="media">
+          <div class="drop-preview" id="preview">
+            <div class="drop-empty">{{ icon('image', 56) }}
+              <h5>{{ 'Add more photos or videos' if media else 'Add photos and videos' }}</h5>
+              <span class="btn btn-primary btn-sm">Select from computer</span>
+              <small class="muted">Up to {{ max_media }} files · jpg, png, gif, webp, mp4, webm, mov</small>
+            </div>
+          </div>
+          <input id="media" name="media" type="file" multiple accept="image/*,video/*" hidden>
+        </label>
       </div>
-      <div class="col-md-4">
-        <label class="form-label fw-semibold" for="stage">Stage</label>
-        <select id="stage" name="stage" class="form-select" required>
-          <option value="">Choose…</option>
-          {% for key, label in stages.items() %}
-            <option value="{{ key }}" {% if form.get('stage') == key %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label fw-semibold" for="funding_needed">Funding needed</label>
-        <div class="input-group">
-          <span class="input-group-text">₹</span>
-          <input id="funding_needed" name="funding_needed" type="number"
-                 class="form-control" min="1" step="1" placeholder="500000"
-                 value="{{ form.get('funding_needed', '') }}" required>
+
+      <div class="create-fields">
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="title">Project title</label>
+          <input id="title" name="title" class="form-control" maxlength="100"
+                 value="{{ form.get('title', '') }}" required>
         </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="summary">One-line pitch</label>
+          <input id="summary" name="summary" class="form-control" maxlength="160"
+                 placeholder="e.g. Low-cost soil sensors that tell farmers when to water"
+                 value="{{ form.get('summary', '') }}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="description">Description</label>
+          <textarea id="description" name="description" class="form-control" rows="4"
+                    placeholder="What problem does it solve? Who is it for? What have you built so far?"
+                    required>{{ form.get('description', '') }}</textarea>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold" for="domain">Domain</label>
+            <select id="domain" name="domain" class="form-select" required>
+              <option value="">Choose…</option>
+              {% for d in domains %}
+                <option {% if form.get('domain') == d %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold" for="stage">Stage</label>
+            <select id="stage" name="stage" class="form-select" required>
+              <option value="">Choose…</option>
+              {% for key, label in stages.items() %}
+                <option value="{{ key }}" {% if form.get('stage') == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <label class="form-label fw-semibold" for="funding_needed">Funding goal</label>
+        <div class="input-group mb-4">
+          <span class="input-group-text">₹</span>
+          <input id="funding_needed" name="funding_needed" type="number" class="form-control"
+                 min="1" step="1" placeholder="500000" value="{{ form.get('funding_needed', '') }}" required>
+        </div>
+        <button class="btn btn-primary w-100">{{ 'Save changes' if project else 'Share post' }}</button>
+        <a class="d-block text-center mt-2 muted" href="{{ url_for('feed.index') }}">Cancel</a>
       </div>
-    </div>
-    <div class="d-flex align-items-center gap-3">
-      <button class="btn btn-magic">{{ 'Save changes ✨' if project else 'Submit project ✨' }}</button>
-      <a href="{{ url_for('dashboard.innovator') }}">Cancel</a>
     </div>
   </form>
 </div>
+<script>
+  // Photos and videos add up: every pick (or drop) is added to the list, and each can be removed.
+  const maxFiles = {{ max_media }};
+  const existing = {{ media|length }};
+  const input = document.getElementById("media");
+  const preview = document.getElementById("preview");
+  const empty = preview.innerHTML;
+  let chosen = [];
+
+  function sync() {
+    const box = new DataTransfer();
+    chosen.forEach((file) => box.items.add(file));
+    input.files = box.files;
+    if (!chosen.length) { preview.innerHTML = empty; return; }
+    preview.innerHTML = '<div class="pv-grid"></div>'
+      + '<div class="pv-note">' + chosen.length + " selected. Click to add more.</div>";
+    const grid = preview.querySelector(".pv-grid");
+    chosen.forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      const tile = document.createElement("div");
+      tile.className = "pv";
+      tile.innerHTML = (file.type.startsWith("video")
+        ? '<video src="' + url + '#t=0.1" muted preload="metadata"></video>'
+        : '<img src="' + url + '" alt="">') + '<button type="button" class="pv-x" title="Remove">&times;</button>';
+      tile.querySelector(".pv-x").addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        chosen.splice(i, 1);
+        sync();
+      });
+      grid.appendChild(tile);
+    });
+  }
+
+  function add(files) {
+    for (const file of files) {
+      if (!/^(image|video)\//.test(file.type)) continue;
+      if (chosen.some((c) => c.name === file.name && c.size === file.size)) continue;
+      if (existing + chosen.length >= maxFiles) { alert("A post can have at most " + maxFiles + " photos or videos."); break; }
+      chosen.push(file);
+    }
+    sync();
+  }
+
+  input.addEventListener("change", () => add(Array.from(input.files)));
+  const drop = document.querySelector(".drop");
+  ["dragover", "dragenter"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((n) => drop.addEventListener(n, () => drop.classList.remove("over")));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); add(Array.from(e.dataTransfer.files)); });
+</script>
 {% endblock %}

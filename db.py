@@ -49,13 +49,102 @@ def add_bio(conn):
         conn.execute("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''")
 
 
+def add_post_columns(conn):
+    """Older databases: posts get photo/video columns, sponsor offers get amount + message."""
+    def columns(table):
+        return [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
+    project_cols = columns("projects")
+    if project_cols and "media_path" not in project_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN media_path TEXT")
+        conn.execute("ALTER TABLE projects ADD COLUMN media_type TEXT")
+    interest_cols = columns("interests")
+    if interest_cols and "amount" not in interest_cols:
+        conn.execute("ALTER TABLE interests ADD COLUMN amount INTEGER")
+        conn.execute("ALTER TABLE interests ADD COLUMN message TEXT NOT NULL DEFAULT ''")
+
+
+def add_user_settings(conn):
+    """Older databases: profile photo + preference columns on users."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
+    if not columns:
+        return
+    wanted = {
+        "avatar": "TEXT",
+        "theme": "TEXT NOT NULL DEFAULT 'system'",
+        "accent": "TEXT NOT NULL DEFAULT 'aurora'",
+        "calm": "INTEGER NOT NULL DEFAULT 0",
+        "autoplay": "INTEGER NOT NULL DEFAULT 1",
+        "dm_policy": "TEXT NOT NULL DEFAULT 'everyone'",
+        "accepts_offers": "INTEGER NOT NULL DEFAULT 1",
+    }
+    for name, definition in wanted.items():
+        if name not in columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
+
+
+def move_post_media(conn):
+    """Posts used to hold one photo/video in projects.media_path: move it into post_media."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(projects)")]
+    if "media_path" not in columns:
+        return
+    conn.execute("""INSERT INTO post_media (post_id, path, type, position)
+                    SELECT id, media_path, media_type, 0 FROM projects
+                    WHERE media_path IS NOT NULL AND media_type IS NOT NULL""")
+    conn.execute("UPDATE projects SET media_path = NULL, media_type = NULL")
+
+
+def needs_withdrawn_status(conn):
+    """Old interests tables only allow pending/accepted/declined (a CHECK we can't alter)."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interests'").fetchone()
+    return row is not None and "withdrawn" not in row[0]
+
+
+def add_reply_edit(conn):
+    """Chat messages can be replies and can be edited: two new columns on both chat tables."""
+    for table in ("dm_messages", "server_messages"):
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
+        if cols and "reply_to" not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN reply_to INTEGER REFERENCES {table}(id) ON DELETE SET NULL")
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN edited INTEGER NOT NULL DEFAULT 0")
+
+
+def chat_needs_attachments(conn):
+    """Old chat tables have no attachment columns and force a non-empty body (a CHECK we can't alter)."""
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(dm_messages)")]
+    return bool(cols) and "attachment" not in cols
+
+
 def init_db():
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     add_usernames(conn)
     add_bio(conn)
-    with open(SCHEMA_PATH) as f:
+    add_post_columns(conn)
+    add_user_settings(conn)
+    rebuild_chat = chat_needs_attachments(conn)
+    if rebuild_chat:
+        conn.execute("ALTER TABLE dm_messages RENAME TO dm_messages_old")
+        conn.execute("ALTER TABLE server_messages RENAME TO server_messages_old")
+    rebuild = needs_withdrawn_status(conn)
+    if rebuild:
+        conn.execute("ALTER TABLE interests RENAME TO interests_old")
+    with open(SCHEMA_PATH, encoding="utf-8") as f:
         conn.executescript(f.read())
+    move_post_media(conn)
+    if rebuild_chat:
+        conn.execute("""INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
+                        SELECT id, thread_id, sender_id, body, created_at FROM dm_messages_old""")
+        conn.execute("""INSERT INTO server_messages (id, channel_id, sender_id, body, created_at)
+                        SELECT id, channel_id, sender_id, body, created_at FROM server_messages_old""")
+        conn.execute("DROP TABLE dm_messages_old")
+        conn.execute("DROP TABLE server_messages_old")
+        with open(SCHEMA_PATH, encoding="utf-8") as f:   # re-create the indexes that went with the old tables
+            conn.executescript(f.read())
+    if rebuild:
+        conn.execute("""INSERT INTO interests (id, sponsor_id, project_id, status, amount, message, created_at)
+                        SELECT id, sponsor_id, project_id, status, amount, message, created_at FROM interests_old""")
+        conn.execute("DROP TABLE interests_old")
+    add_reply_edit(conn)
     conn.commit()
     conn.close()
     print("Database ready at", DB_PATH)

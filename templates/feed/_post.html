@@ -1,0 +1,75 @@
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% set mine = post.innovator_id == user['id'] %}
+{% set pct = [100, (post.raised * 100 // post.funding_needed)]|min %}
+<article class="post" data-id="{{ post.id }}">
+  <header class="post-head">
+    <a class="story-ring sm" href="{{ url_for('profiles.public', username=post.username) }}">
+      {{ avatar(post.full_name, post.avatar, 'sm') }}</a>
+    <div class="lh-sm">
+      <a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
+      <span class="post-dot">•</span><time class="post-time">{{ post.created_at[:10] }}</time>
+      <div class="post-sub">{{ post.domain }} · {{ post.stage|capitalize }}</div>
+    </div>
+    {% if mine %}
+      <div class="dropdown ms-auto">
+        <button class="icon-btn" data-bs-toggle="dropdown" aria-label="More">{{ icon('dots', 22) }}</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('projects.edit', project_id=post.id) }}">Edit</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('reports.project', project_id=post.id) }}" target="_blank">PDF report</a></li>
+          <li><form method="POST" action="{{ url_for('projects.delete', project_id=post.id) }}"
+                    onsubmit="return confirm('Delete this post for good?')">
+            <button class="dropdown-item text-danger">Delete</button></form></li>
+        </ul>
+      </div>
+    {% endif %}
+  </header>
+
+  {% include "feed/_media.html" %}
+
+  <div class="post-actions">
+    <button type="button" class="icon-btn like-btn {{ 'liked' if post.liked }}" data-like aria-label="Like">
+      {{ icon('heart', 26, post.liked) }}</button>
+    <a class="icon-btn" href="{{ url_for('feed.post', post_id=post.id) }}" aria-label="Comments">{{ icon('comment', 26) }}</a>
+    {% if not mine %}
+      <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
+        <button class="icon-btn" aria-label="Message">{{ icon('send', 26) }}</button></form>
+      {% if post.my_offer in ['pending', 'accepted'] %}
+        <button type="button" class="offer-state offer-{{ post.my_offer }} offer-edit" data-edit-offer="{{ post.my_offer_id }}"
+                  data-title="{{ post.title }}" data-amount="{{ post.my_amount }}" data-message="{{ post.my_message }}"
+                  title="Change your offer">{{ {'pending': 'Offer sent', 'accepted': 'Sponsoring ✓'}[post.my_offer] }} · ₹{{ '{:,}'.format(post.my_amount or 0) }} ✏️</button>
+      {% elif post.my_offer == 'declined' %}
+        <span class="offer-state offer-declined">Offer declined</span>
+      {% elif not post.accepts_offers %}
+        <span class="offer-state">Offers paused</span>
+      {% else %}
+        <button type="button" class="btn-sponsor ms-auto" data-sponsor="{{ post.id }}" data-title="{{ post.title }}">
+          {{ icon('rupee', 18) }} Sponsor</button>
+      {% endif %}
+    {% else %}
+      <a class="btn-sponsor ghost ms-auto" href="{{ url_for('feed.activity') }}">View offers</a>
+    {% endif %}
+  </div>
+
+  <div class="post-body">
+    <b class="like-count" data-count="{{ post.like_count }}">{{ post.like_count }} like{{ '' if post.like_count == 1 else 's' }}</b>
+    <div class="fund">
+      <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
+      <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
+    </div>
+    <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
+      <b>{{ post.title }}</b> — {{ post.summary }}</p>
+    {% if post.comment_count > 2 %}
+      <a class="muted-link" href="{{ url_for('feed.post', post_id=post.id) }}">View all {{ post.comment_count }} comments</a>
+    {% endif %}
+    <div class="latest-comments">
+      {% for c in post.latest_comments %}
+        <p class="caption"><b>{{ c.username }}</b> {{ c.body }}</p>
+      {% endfor %}
+    </div>
+    <form class="comment-form" data-comment>
+      <input name="body" maxlength="500" placeholder="Add a comment…" autocomplete="off">
+      <button>Post</button>
+    </form>
+  </div>
+</article>

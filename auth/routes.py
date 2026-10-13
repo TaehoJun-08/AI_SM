@@ -15,14 +15,11 @@ def register():
     username = request.form.get("username", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
-    role = request.form.get("role", "innovator")
     db = get_db()
 
     error = None
     if not full_name or not username or not email or not password:
         error = "All fields are required."
-    elif role not in ("innovator", "sponsor"):
-        error = "Please choose a valid role."
     elif not re.fullmatch(r"[A-Za-z0-9_.]{3,20}", username):
         error = "Usernames are 3-20 characters: letters, numbers, _ and . only."
     elif len(password) < 6:
@@ -36,9 +33,9 @@ def register():
         return render_template("auth/register.html", form=request.form)
 
     db.execute(
-        """INSERT INTO users (full_name, username, email, password_hash, role)
-           VALUES (?, ?, ?, ?, ?)""",
-        (full_name, username, email, generate_password_hash(password), role),
+        """INSERT INTO users (full_name, username, email, password_hash)
+           VALUES (?, ?, ?, ?)""",
+        (full_name, username, email, generate_password_hash(password)),
     )
     db.commit()
     flash("Account created. Please log in.")
@@ -64,7 +61,7 @@ def login():
 
     session.clear()
     session["user_id"] = user["id"]
-    return redirect(url_for("dashboard.index"))
+    return redirect(url_for("feed.index"))
 
 #logout
 

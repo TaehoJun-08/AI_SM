@@ -1,0 +1,20 @@
+{% from "_icons.html" import icon %}
+{# A 3-column square grid of posts. Needs: posts (rows with id, title, media_path, media_type, like_count, comment_count) #}
+<div class="grid">
+  {% for p in posts %}
+    <a class="grid-item" href="{{ url_for('feed.post', post_id=p.id) }}">
+      {% if p.media_type == 'image' %}
+        <img src="{{ url_for('static', filename=p.media_path) }}" alt="{{ p.title }}" loading="lazy">
+      {% elif p.media_type == 'video' %}
+        <video src="{{ url_for('static', filename=p.media_path) }}#t=0.1" muted preload="metadata"></video>
+      {% else %}
+        <div class="text-card grad-{{ p.id % 6 }}"><h5>{{ p.title }}</h5></div>
+      {% endif %}
+      {% if p.media_count and p.media_count > 1 %}<span class="grid-multi">{{ icon('image', 16) }} {{ p.media_count }}</span>{% endif %}
+      <div class="grid-hover">
+        <span>{{ icon('heart', 20, true) }} {{ p.like_count }}</span>
+        <span>{{ icon('comment', 20, true) }} {{ p.comment_count }}</span>
+      </div>
+    </a>
+  {% endfor %}
+</div>
