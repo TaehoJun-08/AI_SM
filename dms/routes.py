@@ -24,7 +24,7 @@ def can_send(thread, user_id):
 def load_threads(me):
     """Split my conversations into (chats, requests waiting for my answer)."""
     rows = get_db().execute(
-        """SELECT t.*, u.full_name AS other_name,
+        """SELECT t.*, u.full_name AS other_name, u.username AS other_username,
                   (SELECT body FROM dm_messages WHERE thread_id = t.id
                    ORDER BY id DESC LIMIT 1) AS last_body
            FROM dm_threads t
@@ -46,10 +46,12 @@ def sidebar(me):
     q = request.args.get("q", "").strip()
     people = []
     if q:
+        term = q.lstrip("@")
         people = get_db().execute(
-            """SELECT id, full_name, role FROM users
-               WHERE full_name LIKE ? AND id != ? ORDER BY full_name LIMIT 10""",
-            (f"%{q}%", me),
+            """SELECT id, full_name, username, role FROM users
+               WHERE (username LIKE :like OR full_name LIKE :like) AND id != :me
+               ORDER BY username = :term DESC, username LIMIT 10""",
+            {"like": f"%{term}%", "term": term, "me": me},
         ).fetchall()
     return {"chats": chats, "requests": requests, "people": people, "q": q}
 
@@ -88,7 +90,7 @@ def thread(thread_id):
         abort(404)
     db = get_db()
     other_id = t["user_b"] if t["user_a"] == me else t["user_a"]
-    other = db.execute("SELECT id, full_name, role FROM users WHERE id = ?",
+    other = db.execute("SELECT id, full_name, username, role FROM users WHERE id = ?",
                        (other_id,)).fetchone()
     messages = db.execute(
         """SELECT * FROM (

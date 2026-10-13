@@ -1,3 +1,4 @@
+import re
 from flask import (Blueprint, render_template, request,
                    redirect, url_for, session, flash)
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,36 +9,36 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "GET":
-        return render_template("auth/register.html")
+        return render_template("auth/register.html", form={})
 
-    full_name = request.form["full_name"].strip()
-    email = request.form["email"].strip().lower()
-    password = request.form["password"]
+    full_name = request.form.get("full_name", "").strip()
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
     role = request.form.get("role", "innovator")
-
-    if not full_name or not email or not password:
-        flash("All fields are required.")
-        return render_template("auth/register.html")
-
-    if role not in ("innovator", "sponsor"):
-        flash("Please choose a valid role.")
-        return render_template("auth/register.html")
-
-    if len(password) < 6:
-        flash("Password must be at least 6 characters.")
-        return render_template("auth/register.html")
-
     db = get_db()
-    existing = db.execute(
-        "SELECT id FROM users WHERE email = ?", (email,)
-    ).fetchone()
-    if existing:
-        flash("An account with this email already exists.")
-        return render_template("auth/register.html")
+
+    error = None
+    if not full_name or not username or not email or not password:
+        error = "All fields are required."
+    elif role not in ("innovator", "sponsor"):
+        error = "Please choose a valid role."
+    elif not re.fullmatch(r"[A-Za-z0-9_.]{3,20}", username):
+        error = "Usernames are 3-20 characters: letters, numbers, _ and . only."
+    elif len(password) < 6:
+        error = "Password must be at least 6 characters."
+    elif db.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
+        error = f"@{username} is already taken. Try another one."
+    elif db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+        error = "An account with this email already exists."
+    if error:
+        flash(error)
+        return render_template("auth/register.html", form=request.form)
 
     db.execute(
-        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)",
-        (full_name, email, generate_password_hash(password), role),
+        """INSERT INTO users (full_name, username, email, password_hash, role)
+           VALUES (?, ?, ?, ?, ?)""",
+        (full_name, username, email, generate_password_hash(password), role),
     )
     db.commit()
     flash("Account created. Please log in.")

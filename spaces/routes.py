@@ -96,13 +96,13 @@ def view(project_id, channel_id=None):
     ).fetchall()
     current = next((c for c in channels if c["id"] == channel_id), channels[0])
     members = db.execute(
-        """SELECT u.id, u.full_name, 'owner' AS role FROM projects p
+        """SELECT u.id, u.full_name, u.username, 'owner' AS role FROM projects p
              JOIN users u ON u.id = p.innovator_id WHERE p.id = :pid
            UNION ALL
-           SELECT u.id, u.full_name, 'member' FROM project_members m
+           SELECT u.id, u.full_name, u.username, 'member' FROM project_members m
              JOIN users u ON u.id = m.user_id WHERE m.project_id = :pid
            UNION ALL
-           SELECT u.id, u.full_name, 'sponsor' FROM interests i
+           SELECT u.id, u.full_name, u.username, 'sponsor' FROM interests i
              JOIN users u ON u.id = i.sponsor_id
              WHERE i.project_id = :pid AND i.status = 'accepted'""",
         {"pid": project_id},

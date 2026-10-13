@@ -3,7 +3,7 @@
      href="{{ url_for('dms.thread', thread_id=t['id']) }}">
     <span class="avatar-sm">{{ t['other_name'][0]|upper }}</span>
     <span class="text-truncate">
-      <span class="d-block">{{ t['other_name'] }}</span>
+      <span class="d-block">@{{ t['other_username'] }}</span>
       <small class="opacity-75">{{ t['last_body'] or 'No messages yet' }}</small>
     </span>
   </a>
@@ -13,7 +13,7 @@
   <h5 class="mb-2">💬 Messages</h5>
   <form method="GET" action="{{ url_for('dms.inbox') }}">
     <input name="q" value="{{ q }}" class="form-control form-control-sm"
-           placeholder="🔍 Find people by name">
+           placeholder="🔍 Search @username or name">
   </form>
 
   {% if people %}
@@ -21,7 +21,10 @@
     {% for p in people %}
       <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="member">
         <span class="avatar-sm">{{ p['full_name'][0]|upper }}</span>
-        <span>{{ p['full_name'] }} <small class="text-muted text-capitalize">· {{ p['role'] }}</small></span>
+        <span class="lh-sm">
+          <span class="d-block fw-semibold">@{{ p['username'] }}</span>
+          <small class="text-muted">{{ p['full_name'] }} · <span class="text-capitalize">{{ p['role'] }}</span></small>
+        </span>
         <button class="btn btn-sm btn-link ms-auto p-0">Message</button>
       </form>
     {% endfor %}
