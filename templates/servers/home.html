@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Servers · Sponsorship Matchmaker{% endblock %}
+{% block body_class %}discord-page{% endblock %}
+{% block main %}
+{% include "_flashes.html" %}
+<div class="srv-app">
+  {% include "servers/_rail.html" %}
+  <main class="srv-home">
+    <h2>Servers</h2>
+    <p class="srv-muted">Hang out with your team, your sponsors or your community.</p>
+
+    <div class="srv-cards" id="create">
+      <form method="POST" action="{{ url_for('servers.create') }}" class="srv-card">
+        <h5>Create your own</h5>
+        <label>Server name</label>
+        <input name="name" maxlength="40" placeholder="e.g. Green Farm Labs" required>
+        <div class="srv-row">
+          <div><label>Icon (emoji)</label><input name="icon" maxlength="4" placeholder="🌱"></div>
+          <div><label>Colour</label><input name="color" type="color" value="#5865f2"></div>
+        </div>
+        <label>Description</label>
+        <input name="description" maxlength="200" placeholder="What is this server about?">
+        <label class="srv-check"><input type="checkbox" name="private"> Make it private (hide from Explore)</label>
+        <button class="srv-btn">Create server</button>
+      </form>
+
+      <form method="POST" action="{{ url_for('servers.join_code') }}" class="srv-card">
+        <h5>Have an invite?</h5>
+        <label>Invite code</label>
+        <input name="code" maxlength="8" placeholder="A1B2C3D4" required style="text-transform: uppercase">
+        <button class="srv-btn">Join server</button>
+        <p class="srv-muted small mb-0 mt-3">Invite codes live in a server's name menu → Invite People.</p>
+      </form>
+    </div>
+
+    <h4 class="mt-5">Explore public servers</h4>
+    <div class="srv-explore">
+      {% for s in explore %}
+        <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="srv-card explore">
+          <span class="srv-icon" style="--c: {{ s['color'] }}">{{ s['icon'] or s['name'][:2]|upper }}</span>
+          <div class="flex-grow-1">
+            <b>{{ s['name'] }}</b>
+            <div class="srv-muted small">{{ s['description'] or 'No description yet.' }}</div>
+            <div class="srv-muted small">{{ s['members'] }} member{{ '' if s['members'] == 1 else 's' }}</div>
+          </div>
+          <button class="srv-btn small">Join</button>
+        </form>
+      {% else %}
+        <p class="srv-muted">Nothing to explore yet. Create the first server!</p>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+{% endblock %}

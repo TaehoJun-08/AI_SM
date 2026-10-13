@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% from "_icons.html" import icon %}
+{% block title %}Home · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<div class="feed-wrap">
+  <main class="feed-col">
+    <div class="feed-hero">
+      <h1 class="shimmer-text">Hi, {{ user['full_name'].split()[0] }} ✨</h1>
+      <p>Fresh ideas looking for backers. Scroll, cheer, sponsor.</p>
+    </div>
+    {% if authors %}
+      <div class="stories">
+        {% for a in authors %}
+          <a class="story" href="{{ url_for('profiles.public', username=a.username) }}">
+            <span class="story-ring">{{ avatar(a.full_name, a.avatar) }}</span>
+            <small>{{ a.username }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div id="feed">
+      {% for post in posts %}{% include "feed/_post.html" %}{% endfor %}
+    </div>
+    <div id="feed-end" class="feed-end">
+      {% if posts %}<span class="muted">Loading more…</span>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-ring">{{ icon('plus', 40) }}</div>
+          <h4>Nothing here yet</h4>
+          <p class="muted">Be the first to share what you're building.</p>
+          <a class="btn btn-primary" href="{{ url_for('projects.new') }}">Create a post</a>
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <aside class="feed-side">
+    <a class="me-row" href="{{ url_for('profiles.public', username=user['username']) }}">
+      {{ avatar(user['full_name'], user['avatar']) }}
+      <span class="lh-sm"><b>{{ user['username'] }}</b><br><small class="muted">{{ user['full_name'] }}</small></span>
+    </a>
+    <div class="side-head"><b class="muted">Suggested for you</b></div>
+    {% for p in suggested %}
+      <div class="me-row">
+        {{ avatar(p.full_name, p.avatar, 'sm', href=url_for('profiles.public', username=p.username)) }}
+        <a class="lh-sm text-reset text-decoration-none" href="{{ url_for('profiles.public', username=p.username) }}">
+          <b>{{ p.username }}</b><br><small class="muted">{{ p.full_name }}</small></a>
+        <form method="POST" action="{{ url_for('dms.start', user_id=p.id) }}" class="ms-auto">
+          <button class="link-btn">Message</button></form>
+      </div>
+    {% else %}
+      <p class="muted small">More people will show up here as they join.</p>
+    {% endfor %}
+    <p class="muted small mt-4">Sponsorship Matchmaker · build it, post it, back it.</p>
+  </aside>
+</div>
+{% include "feed/_sponsor_dialog.html" %}
+<script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+{% endblock %}

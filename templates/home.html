@@ -1,5 +1,8 @@
-{% extends "base.html" %}
-{% block content %}
-<h4>Welcome</h4>
-<p>AI Sponsorship Matchmaker</p>
+{% extends "auth/_layout.html" %}
+{% block title %}Sponsorship Matchmaker{% endblock %}
+{% block form %}
+<h3 class="fw-bold mb-1">Join the feed</h3>
+<p class="text-muted mb-4">Post what you're building. Back the ideas you believe in. Everyone can do both.</p>
+<a class="btn btn-primary w-100 mb-2" href="{{ url_for('auth.register') }}">Create an account</a>
+<a class="btn btn-outline-secondary w-100" href="{{ url_for('auth.login') }}">Log in</a>
 {% endblock %}

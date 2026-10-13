@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% from "_icons.html" import icon %}
+{% block title %}Settings · Sponsorship Matchmaker{% endblock %}
+{% block content %}
+<div class="settings-page">
+  <h3 class="page-title">Settings</h3>
+  <div class="settings-grid">
+    <nav class="settings-tabs">
+      {% for key, label in tabs.items() %}
+        <a class="settings-tab {{ 'active' if tab == key }}" href="{{ url_for('settings.index', tab=key) }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+
+    <section class="settings-panel glass">
+
+      {# ---------------- PROFILE ---------------- #}
+      {% if tab == 'profile' %}
+        <h5>Profile</h5>
+        <div class="photo-row">
+          <span class="story-ring xl">{{ avatar(user['full_name'], user['avatar'], 'xl') }}</span>
+          <div>
+            <p class="muted mb-2">Your photo shows on your posts, messages and servers. We crop it to a circle.</p>
+            <form method="POST" action="{{ url_for('settings.save_photo') }}" enctype="multipart/form-data" class="d-inline">
+              <label class="btn btn-primary btn-sm mb-0">Upload photo
+                <input type="file" name="photo" accept="image/*" hidden onchange="this.form.submit()"></label>
+            </form>
+            {% if user['avatar'] %}
+              <form method="POST" action="{{ url_for('settings.save_photo') }}" class="d-inline">
+                <button name="remove" value="1" class="btn btn-secondary btn-sm">Remove</button></form>
+            {% endif %}
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('settings.save_profile') }}">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="full_name">Name</label>
+              <input id="full_name" name="full_name" class="form-control" value="{{ user['full_name'] }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="username">Username</label>
+              <div class="input-group">
+                <span class="input-group-text">@</span>
+                <input id="username" name="username" class="form-control" maxlength="20"
+                       pattern="[A-Za-z0-9_.]{3,20}" value="{{ user['username'] }}" required>
+              </div>
+            </div>
+          </div>
+          <label class="form-label fw-semibold" for="bio">Bio</label>
+          <textarea id="bio" name="bio" class="form-control mb-1" rows="3" maxlength="300"
+                    placeholder="Tell people what you build or what you like to back.">{{ user['bio'] }}</textarea>
+          <div class="form-text mb-3">Up to 300 characters. Everyone can see it on your profile.</div>
+          <button class="btn btn-primary">Save profile</button>
+          <a class="ms-3" href="{{ url_for('profiles.public', username=user['username']) }}">View my profile</a>
+        </form>
+
+      {# ---------------- APPEARANCE ---------------- #}
+      {% elif tab == 'appearance' %}
+        <h5>Appearance</h5>
+        <p class="muted">Changes show instantly. Press Save to keep them on every device.</p>
+        <form method="POST" action="{{ url_for('settings.save_appearance') }}" id="appearance-form">
+          <input type="hidden" name="form" value="1">
+
+          <label class="set-label">Theme</label>
+          <div class="choice-row">
+            {% for key, label, glyph in [('system', 'System', 'sun'), ('light', 'Light', 'sun'), ('dark', 'Dark', 'moon')] %}
+              <label class="choice">
+                <input type="radio" name="theme" value="{{ key }}" {{ 'checked' if user['theme'] == key }} hidden>
+                <span class="choice-card">
+                  <span class="theme-preview tp-{{ key }}"></span>
+                  <b>{{ label }}</b>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <label class="set-label">Accent colours</label>
+          <div class="choice-row">
+            {% for key, label in accents.items() %}
+              <label class="choice">
+                <input type="radio" name="accent" value="{{ key }}" {{ 'checked' if user['accent'] == key }} hidden>
+                <span class="choice-card"><span class="swatch sw-{{ key }}"></span><b>{{ label }}</b></span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <label class="set-label">Motion</label>
+          <label class="switch-row">
+            <input type="checkbox" name="calm" {{ 'checked' if user['calm'] }}>
+            <span><b>Calm mode</b><small class="muted d-block">Turn off the floating colours, stardust and shimmer.</small></span>
+          </label>
+          <label class="switch-row">
+            <input type="checkbox" name="autoplay" {{ 'checked' if user['autoplay'] }}>
+            <span><b>Autoplay videos</b><small class="muted d-block">Videos in your feed play (muted) while they're on screen.</small></span>
+          </label>
+
+          <button class="btn btn-primary mt-3">Save appearance</button>
+        </form>
+        <script>
+          // Live preview: apply choices to the page right away.
+          (function () {
+            const form = document.getElementById("appearance-form");
+            const root = document.documentElement;
+            function apply() {
+              const data = new FormData(form);
+              let theme = data.get("theme");
+              root.dataset.pref = theme;
+              if (theme === "system") theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+              root.dataset.theme = theme;
+              root.dataset.bsTheme = theme;
+              root.dataset.accent = data.get("accent");
+              root.dataset.calm = data.get("calm") ? "1" : "0";
+              root.dataset.autoplay = data.get("autoplay") ? "1" : "0";
+            }
+            form.addEventListener("change", apply);
+          })();
+        </script>
+
+      {# ---------------- PRIVACY ---------------- #}
+      {% elif tab == 'privacy' %}
+        <h5>Privacy</h5>
+        <form method="POST" action="{{ url_for('settings.save_privacy') }}">
+          <label class="set-label">Who can start a chat with you?</label>
+          <label class="switch-row">
+            <input type="radio" name="dm_policy" value="everyone" {{ 'checked' if user['dm_policy'] == 'everyone' }}>
+            <span><b>Anyone</b><small class="muted d-block">New people send a message request that you accept or decline.</small></span>
+          </label>
+          <label class="switch-row">
+            <input type="radio" name="dm_policy" value="none" {{ 'checked' if user['dm_policy'] == 'none' }}>
+            <span><b>Nobody new</b><small class="muted d-block">Only people you already chat with can write to you.</small></span>
+          </label>
+
+          <label class="set-label">Sponsorship</label>
+          <label class="switch-row">
+            <input type="checkbox" name="accepts_offers" {{ 'checked' if user['accepts_offers'] }}>
+            <span><b>Accept sponsorship offers</b><small class="muted d-block">Turn this off to pause new offers on your projects. Existing offers stay.</small></span>
+          </label>
+          <button class="btn btn-primary mt-3">Save privacy</button>
+        </form>
+
+      {# ---------------- ACCOUNT ---------------- #}
+      {% else %}
+        <h5>Account</h5>
+        <div class="info-grid">
+          <div><small class="muted">Email</small><div><b>{{ user['email'] }}</b></div></div>
+          <div><small class="muted">Member since</small><div><b>{{ user['created_at'][:10] }}</b></div></div>
+        </div>
+
+        <h6 class="mt-4">Change password</h6>
+        <form method="POST" action="{{ url_for('settings.save_password') }}">
+          <label class="form-label fw-semibold" for="current_password">Current password</label>
+          <input id="current_password" name="current_password" type="password" class="form-control mb-3" required>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="new_password">New password</label>
+              <input id="new_password" name="new_password" type="password" class="form-control" minlength="6" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="confirm_password">Type it again</label>
+              <input id="confirm_password" name="confirm_password" type="password" class="form-control" minlength="6" required>
+            </div>
+          </div>
+          <button class="btn btn-primary">Change password</button>
+        </form>
+
+        <h6 class="mt-4">Your data</h6>
+        <p class="muted">Download your profile, posts, comments and offers as a file.</p>
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('settings.export') }}">Download my data</a>
+
+        <div class="danger-zone-app">
+          <h6>Delete account</h6>
+          <p class="muted">This removes your profile, posts, messages and servers you own. It can't be undone.</p>
+          <form method="POST" action="{{ url_for('settings.delete_account') }}" class="d-flex gap-2 flex-wrap"
+                onsubmit="return confirm('Delete your account for good?')">
+            <input name="password" type="password" class="form-control" style="max-width: 260px" placeholder="Your password" required>
+            <button class="btn btn-danger btn-sm">Delete my account</button>
+          </form>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% from "_icons.html" import icon %}
+{% block title %}Activity · Sponsorship Matchmaker{% include "feed/_sponsor_dialog.html" %}
+<script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h3 class="page-title">Activity</h3>
+
+  <h6 class="section-title">Sponsorship offers on your posts</h6>
+  {% for o in incoming %}
+    <div class="row-card">
+      {{ avatar(o.full_name, o.avatar, href=url_for('profiles.public', username=o.username)) }}
+      <div class="flex-grow-1">
+        <div><a class="post-user" href="{{ url_for('profiles.public', username=o.username) }}">{{ o.username }}</a>
+          offered <b>₹{{ '{:,}'.format(o.amount or 0) }}</b> for <b>{{ o.title }}</b></div>
+        {% if o.message %}<div class="muted">“{{ o.message }}”</div>{% endif %}
+        {% if o.status == 'accepted' %}<small class="muted">Contact: {{ o.email }}</small>{% endif %}
+      </div>
+      {% if o.status == 'pending' %}
+        <form method="POST" action="{{ url_for('interests.respond', interest_id=o.id, action='accept') }}">
+          <button class="btn btn-primary btn-sm">Accept</button></form>
+        <form method="POST" action="{{ url_for('interests.respond', interest_id=o.id, action='decline') }}">
+          <button class="btn btn-outline-secondary btn-sm">Decline</button></form>
+      {% else %}
+        <span class="offer-state offer-{{ o.status }}">{{ o.status|capitalize }}</span>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">No offers yet. When someone wants to back one of your projects, it shows up here.</p>
+  {% endfor %}
+
+  <h6 class="section-title">Likes and comments</h6>
+  {% for e in events %}
+    <a class="row-card text-reset text-decoration-none" href="{{ url_for('feed.post', post_id=e.post_id) }}">
+      <span class="act-icon {{ e.kind }}">{{ icon('heart' if e.kind == 'like' else 'comment', 20, e.kind == 'like') }}</span>
+      <div class="flex-grow-1">
+        <b>{{ e.username }}</b> {{ 'liked' if e.kind == 'like' else 'commented on' }} <b>{{ e.title }}</b>
+        {% if e.body %}<div class="muted">“{{ e.body }}”</div>{% endif %}
+      </div>
+      <small class="muted">{{ e.created_at[:10] }}</small>
+    </a>
+  {% else %}
+    <p class="muted">Nothing yet.</p>
+  {% endfor %}
+
+  <h6 class="section-title">Offers you sent</h6>
+  {% for o in sent %}
+    <div class="row-card">
+      <div class="flex-grow-1">
+        ₹{{ '{:,}'.format(o.amount or 0) }} to <a href="{{ url_for('feed.post', post_id=o.post_id) }}"><b>{{ o.title }}</b></a>
+        by @{{ o.username }}
+      </div>
+      <span class="offer-state offer-{{ o.status }}">{{ o.status|capitalize }}</span>
+      {% if o.status in ['pending', 'accepted'] %}
+        <button type="button" class="btn btn-secondary btn-sm" data-edit-offer="{{ o.id }}" data-title="{{ o.title }}"
+                data-amount="{{ o.amount }}" data-message="{{ o.message }}">Edit</button>
+      {% endif %}
+      {% if o.status in ['pending', 'accepted'] %}
+        <form method="POST" action="{{ url_for('interests.withdraw', interest_id=o.id) }}"
+              onsubmit="return confirm('{{ 'Withdraw this offer?' if o.status == 'pending' else 'Withdraw your sponsorship? The owner will be told in your chat.' }}')">
+          <button class="btn btn-outline-secondary btn-sm">Withdraw</button></form>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">You haven't sponsored anything yet. Tap Sponsor on a post you like.</p>
+  {% endfor %}
+</div>
+{% include "feed/_sponsor_dialog.html" %}
+<script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+{% endblock %}

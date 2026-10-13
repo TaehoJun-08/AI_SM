@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Server Settings · {{ server['name'] }}{% endblock %}
+{% block body_class %}discord-page{% endblock %}
+{% block main %}
+{% include "_flashes.html" %}
+{% set sid = server['id'] %}
+{% macro color_input(value) %}<input type="color" name="color" value="{{ value }}" class="srv-color">{% endmacro %}
+
+<div class="srv-settings">
+  <aside class="set-nav">
+    <div class="set-nav-inner">
+      <div class="mem-title">{{ server['name']|upper }}</div>
+      {% for t in tabs %}
+        {% if t != 'invite' or true %}
+          <a class="set-tab {{ 'active' if tab == t }}" href="{{ url_for('servers.settings', server_id=sid, tab=t) }}">
+            {{ {'overview': 'Overview', 'roles': 'Roles', 'channels': 'Channels', 'members': 'Members', 'invite': 'Invites'}[t] }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </aside>
+
+  <main class="set-main">
+    <a class="set-close" href="{{ url_for('servers.view', server_id=sid) }}" title="Close">
+      <span>{{ icon('x', 20) }}</span><small>ESC</small></a>
+
+    {# ---------------- OVERVIEW ---------------- #}
+    {% if tab == 'overview' %}
+      <h3>Server Overview</h3>
+      <form method="POST" action="{{ url_for('servers.save_overview', server_id=sid) }}" class="set-form">
+        <div class="srv-row">
+          <div class="grow"><label>Server name</label>
+            <input name="name" value="{{ server['name'] }}" maxlength="40" required></div>
+          <div><label>Icon (emoji)</label><input name="icon" value="{{ server['icon'] }}" maxlength="4" style="width: 90px"></div>
+          <div><label>Colour</label>{{ color_input(server['color']) }}</div>
+        </div>
+        <label>Description</label>
+        <input name="description" value="{{ server['description'] }}" maxlength="200">
+        <label class="srv-check"><input type="checkbox" name="is_public" {{ 'checked' if server['is_public'] }}>
+          Show this server in Explore (public)</label>
+        <button class="srv-btn">Save changes</button>
+      </form>
+
+      {% if m.is_owner %}
+        <div class="danger-zone">
+          <h5>Delete server</h5>
+          <p class="srv-muted">This removes every channel and message for good. Type <b>{{ server['name'] }}</b> to confirm.</p>
+          <form method="POST" action="{{ url_for('servers.delete', server_id=sid) }}" class="d-flex gap-2">
+            <input name="confirm" placeholder="{{ server['name'] }}" class="flex-grow-1">
+            <button class="srv-btn danger">Delete</button>
+          </form>
+        </div>
+      {% endif %}
+
+    {# ---------------- ROLES ---------------- #}
+    {% elif tab == 'roles' %}
+      <h3>Roles</h3>
+      <p class="srv-muted">Roles give members a colour and, if you tick Administrator, the power to manage the server. They also unlock private channels.</p>
+      <form method="POST" action="{{ url_for('servers.add_role', server_id=sid) }}" class="set-form inline">
+        <input name="name" placeholder="New role name" maxlength="30" required>
+        {{ color_input('#e91e63') }}
+        <label class="srv-check m-0"><input type="checkbox" name="is_admin"> Administrator</label>
+        <button class="srv-btn">Create role</button>
+      </form>
+      {% for r in roles %}
+        <div class="set-item">
+          <form method="POST" action="{{ url_for('servers.edit_role', server_id=sid, role_id=r['id']) }}" class="set-form inline">
+            <span class="role-dot" style="background: {{ r['color'] }}"></span>
+            <input name="name" value="{{ r['name'] }}" maxlength="30" required>
+            {{ color_input(r['color']) }}
+            <label class="srv-check m-0"><input type="checkbox" name="is_admin" {{ 'checked' if r['is_admin'] }}> Administrator</label>
+            <button class="srv-btn small">Save</button>
+          </form>
+          <form method="POST" action="{{ url_for('servers.delete_role', server_id=sid, role_id=r['id']) }}"
+                onsubmit="return confirm('Delete this role?')"><button class="srv-btn small danger">Delete</button></form>
+        </div>
+      {% else %}
+        <p class="srv-muted mt-3">No roles yet. Create one above, then give it to people in the Members tab.</p>
+      {% endfor %}
+
+    {# ---------------- CHANNELS ---------------- #}
+    {% elif tab == 'channels' %}
+      <h3>Channels</h3>
+      <div class="set-box">
+        <h5>Create a channel</h5>
+        <form method="POST" action="{{ url_for('servers.add_channel', server_id=sid) }}" class="set-form">
+          <div class="srv-row">
+            <div class="grow"><label>Name</label><input name="name" placeholder="new-channel" maxlength="30" required></div>
+            <div><label>Type</label>
+              <select name="kind"><option value="text"># Text</option><option value="announcement">📢 Announcement (admins post)</option></select></div>
+            <div><label>Category</label>
+              <select name="category_id"><option value="">No category</option>
+                {% for c in categories %}<option value="{{ c['id'] }}">{{ c['name'] }}</option>{% endfor %}</select></div>
+          </div>
+          <label>Topic</label><input name="topic" maxlength="120" placeholder="What's this channel for?">
+          <label class="srv-check"><input type="checkbox" name="is_private"> 🔒 Private channel (only admins and the roles below can see it)</label>
+          {% if roles %}
+            <div class="srv-row wrap">
+              {% for r in roles %}
+                <label class="srv-check"><input type="checkbox" name="role_ids" value="{{ r['id'] }}">
+                  <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <button class="srv-btn">Create channel</button>
+        </form>
+      </div>
+
+      <div class="set-box">
+        <h5>Create a category</h5>
+        <form method="POST" action="{{ url_for('servers.add_category', server_id=sid) }}" class="set-form inline">
+          <input name="name" placeholder="Category name" maxlength="30" required>
+          <button class="srv-btn">Create category</button>
+        </form>
+        {% for c in categories %}
+          <div class="set-item">
+            <form method="POST" action="{{ url_for('servers.edit_category', server_id=sid, category_id=c['id']) }}" class="set-form inline">
+              <input name="name" value="{{ c['name'] }}" maxlength="30" required>
+              <button class="srv-btn small">Rename</button>
+            </form>
+            <form method="POST" action="{{ url_for('servers.delete_category', server_id=sid, category_id=c['id']) }}"
+                  onsubmit="return confirm('Delete this category? Its channels are kept.')"><button class="srv-btn small danger">Delete</button></form>
+          </div>
+        {% endfor %}
+      </div>
+
+      <h5 class="mt-4">Edit channels</h5>
+      {% for ch in channels %}
+        <details class="set-box">
+          <summary>{{ icon('lock' if ch['is_private'] else ('megaphone' if ch['kind'] == 'announcement' else 'hash'), 16) }} {{ ch['name'] }}</summary>
+          <form method="POST" action="{{ url_for('servers.edit_channel', server_id=sid, channel_id=ch['id']) }}" class="set-form">
+            <div class="srv-row">
+              <div class="grow"><label>Name</label><input name="name" value="{{ ch['name'] }}" maxlength="30" required></div>
+              <div><label>Type</label>
+                <select name="kind">
+                  <option value="text" {{ 'selected' if ch['kind'] == 'text' }}># Text</option>
+                  <option value="announcement" {{ 'selected' if ch['kind'] == 'announcement' }}>📢 Announcement</option></select></div>
+              <div><label>Category</label>
+                <select name="category_id"><option value="">No category</option>
+                  {% for c in categories %}<option value="{{ c['id'] }}" {{ 'selected' if ch['category_id'] == c['id'] }}>{{ c['name'] }}</option>{% endfor %}</select></div>
+            </div>
+            <label>Topic</label><input name="topic" value="{{ ch['topic'] }}" maxlength="120">
+            <label class="srv-check"><input type="checkbox" name="is_private" {{ 'checked' if ch['is_private'] }}> 🔒 Private channel</label>
+            {% if roles %}
+              <div class="srv-row wrap">
+                {% for r in roles %}
+                  <label class="srv-check"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
+                    {{ 'checked' if r['id'] in channel_roles.get(ch['id'], []) }}>
+                    <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="d-flex gap-2"><button class="srv-btn small">Save</button></div>
+          </form>
+          <form method="POST" action="{{ url_for('servers.delete_channel', server_id=sid, channel_id=ch['id']) }}"
+                onsubmit="return confirm('Delete #{{ ch['name'] }} and all its messages?')" class="mt-2">
+            <button class="srv-btn small danger">Delete channel</button></form>
+        </details>
+      {% endfor %}
+
+    {# ---------------- MEMBERS ---------------- #}
+    {% elif tab == 'members' %}
+      <h3>Members <small class="srv-muted">— {{ members|length }}</small></h3>
+      {% for p in members %}
+        <div class="set-item mem-item">
+          {{ avatar(p['username'], p['avatar'], kind='avatar-sm') }}
+          <div class="lh-sm" style="min-width: 140px"><b>{{ p['username'] }}</b>
+            {% if p['id'] == server['owner_id'] %}<span class="badge-owner">👑 Owner</span>{% endif %}<br>
+            <small class="srv-muted">{{ p['full_name'] }}</small></div>
+          <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline grow">
+            {% for r in roles %}
+              <label class="srv-check m-0"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
+                {{ 'checked' if r['id'] in member_roles.get(p['id'], []) }}>
+                <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
+            {% endfor %}
+            {% if roles %}<button class="srv-btn small">Save roles</button>{% else %}<small class="srv-muted">Create roles first</small>{% endif %}
+          </form>
+          {% if p['id'] != server['owner_id'] and p['id'] != user['id'] %}
+            <form method="POST" action="{{ url_for('servers.kick', server_id=sid, user_id=p['id']) }}"
+                  onsubmit="return confirm('Remove {{ p['username'] }} from the server?')"><button class="srv-btn small danger">Kick</button></form>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+    {# ---------------- INVITES ---------------- #}
+    {% else %}
+      <h3>Invites</h3>
+      <p class="srv-muted">Share this code. People paste it on the Servers page to join.</p>
+      <div class="invite-box">{{ server['invite_code'] }}</div>
+      <form method="POST" action="{{ url_for('servers.reset_invite', server_id=sid) }}" class="mt-3">
+        <button class="srv-btn">Make a new code</button></form>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

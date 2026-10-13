@@ -19,16 +19,3 @@ def login_required(view):
             return redirect(url_for("auth.login"))
         return view(*args, **kwargs)
     return wrapped
-
-
-def role_required(role):
-    def decorator(view):
-        @wraps(view)
-        def wrapped(*args, **kwargs):
-            user = current_user()
-            if user is None or user["role"] != role:
-                flash("You don't have access to that page.")
-                return redirect(url_for("home"))
-            return view(*args, **kwargs)
-        return wrapped
-    return decorator

@@ -1,7 +1,8 @@
 from flask import (Blueprint, render_template, request,
                    redirect, url_for, flash, session, abort)
 from db import get_db
-from helpers import login_required, role_required
+from helpers import login_required
+from media import save_many, delete_media, MAX_PER_POST
 
 projects_bp = Blueprint("projects", __name__, url_prefix="/projects")
 
@@ -12,8 +13,13 @@ MAX_FUNDING = 10_000_000_000  # ₹1,000 crore
 
 
 def show_form(form=None, project=None):
+    media = []
+    if project is not None:
+        media = get_db().execute("SELECT * FROM post_media WHERE post_id = ? ORDER BY position, id",
+                                 (project["id"],)).fetchall()
     return render_template("projects/new.html", domains=DOMAINS, stages=STAGES,
-                           form=form or {}, project=project)
+                           form=form or {}, project=project, media=media,
+                           max_media=MAX_PER_POST)
 
 
 def validate(form):
@@ -41,52 +47,69 @@ def validate(form):
     return data, None
 
 
+def add_media(db, post_id, saved):
+    """Attach freshly saved files to a post, after the ones it already has."""
+    start = db.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM post_media WHERE post_id = ?",
+                       (post_id,)).fetchone()[0]
+    db.executemany("INSERT INTO post_media (post_id, path, type, position) VALUES (?, ?, ?, ?)",
+                   [(post_id, path, kind, start + i) for i, (path, kind) in enumerate(saved)])
+
+
 @projects_bp.route("/new", methods=["GET", "POST"])
 @login_required
-@role_required("innovator")
 def new():
     if request.method == "GET":
         return show_form()
 
     data, error = validate(request.form)
+    saved = []
+    if not error:
+        try:
+            saved = save_many(request.files.getlist("media"), MAX_PER_POST)
+        except ValueError as e:
+            error = str(e)
     if error:
         flash(error)
         return show_form(request.form)
 
     data["innovator_id"] = session["user_id"]
     db = get_db()
-    db.execute(
+    cur = db.execute(
         """INSERT INTO projects
            (innovator_id, title, summary, description, domain, stage, funding_needed)
            VALUES (:innovator_id, :title, :summary, :description,
                    :domain, :stage, :funding_needed)""",
         data,
     )
+    add_media(db, cur.lastrowid, saved)
     db.commit()
     flash("Your project is live! ✨")
-    return redirect(url_for("dashboard.innovator"))
+    return redirect(url_for("feed.post", post_id=cur.lastrowid))
 
 
 @projects_bp.route("/<int:project_id>/delete", methods=["POST"])
 @login_required
-@role_required("innovator")
 def delete(project_id):
     db = get_db()
-    result = db.execute(
-        "DELETE FROM projects WHERE id = ? AND innovator_id = ?",
-        (project_id, session["user_id"]),
-    )
-    db.commit()
-    if result.rowcount == 0:
+    project = db.execute("SELECT id FROM projects WHERE id = ? AND innovator_id = ?",
+                         (project_id, session["user_id"])).fetchone()
+    if project is None:
         flash("Project not found.")
     else:
+        paths = [r["path"] for r in db.execute("SELECT path FROM post_media WHERE post_id = ?",
+                                               (project_id,))]
+        db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        db.commit()
+        for path in paths:
+            delete_media(path)
         flash("Project deleted.")
-    return redirect(url_for("dashboard.innovator"))
+    username = db.execute("SELECT username FROM users WHERE id = ?",
+                          (session["user_id"],)).fetchone()[0]
+    return redirect(url_for("profiles.public", username=username))
 
 
 @projects_bp.route("/<int:project_id>/edit", methods=["GET", "POST"])
 @login_required
-@role_required("innovator")
 def edit(project_id):
     db = get_db()
     project = db.execute(
@@ -100,6 +123,17 @@ def edit(project_id):
         return show_form(dict(project), project)
 
     data, error = validate(request.form)
+    saved = []
+    removed = request.form.getlist("remove_media", type=int)
+    existing = {r["id"]: r["path"] for r in db.execute(
+        "SELECT id, path FROM post_media WHERE post_id = ?", (project_id,))}
+    if not error:
+        removed = [i for i in removed if i in existing]
+        room = MAX_PER_POST - (len(existing) - len(removed))
+        try:
+            saved = save_many(request.files.getlist("media"), max(room, 0))
+        except ValueError as e:
+            error = str(e)
     if error:
         flash(error)
         return show_form(request.form, project)
@@ -112,6 +146,11 @@ def edit(project_id):
            WHERE id = :id""",
         data,
     )
+    for media_id in removed:
+        db.execute("DELETE FROM post_media WHERE id = ?", (media_id,))
+    add_media(db, project_id, saved)
     db.commit()
+    for media_id in removed:
+        delete_media(existing[media_id])
     flash("Project updated. ✨")
-    return redirect(url_for("dashboard.innovator"))
+    return redirect(url_for("feed.post", post_id=project_id))

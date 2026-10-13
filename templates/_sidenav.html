@@ -1,0 +1,28 @@
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% set ep = request.endpoint or '' %}
+<nav class="sidenav">
+  <a class="sn-logo" href="{{ url_for('feed.index') }}" title="Sponsorship Matchmaker">
+    <span class="sn-logo-mark">✨</span><span class="sn-label sn-brand">Matchmaker</span>
+  </a>
+  <a class="sn-create {{ 'active' if ep == 'projects.new' }}" href="{{ url_for('projects.new') }}" title="Share a new project">
+    {{ icon('plus', 22) }}<span class="sn-label">New post</span></a>
+  <a class="sn-link {{ 'active' if ep == 'feed.index' }}" href="{{ url_for('feed.index') }}">
+    {{ icon('home', 26, ep == 'feed.index') }}<span class="sn-label">Home</span></a>
+  <a class="sn-link {{ 'active' if ep == 'feed.search' }}" href="{{ url_for('feed.search') }}">
+    {{ icon('search', 26) }}<span class="sn-label">Search</span></a>
+  <a class="sn-link {{ 'active' if ep.startswith('dms.') }}" href="{{ url_for('dms.inbox') }}">
+    {{ icon('send', 26) }}<span class="sn-label">Messages</span></a>
+  <a class="sn-link {{ 'active' if ep == 'feed.activity' }}" href="{{ url_for('feed.activity') }}">
+    <span class="sn-icon">{{ icon('heart', 26, ep == 'feed.activity') }}
+      {% if pending_offers %}<i class="sn-badge">{{ pending_offers }}</i>{% endif %}</span>
+    <span class="sn-label">Activity</span></a>
+  <a class="sn-link" href="{{ url_for('servers.home') }}">
+    {{ icon('users', 26) }}<span class="sn-label">Servers</span></a>
+  <a class="sn-link {{ 'active' if ep.startswith('profiles.') }}" href="{{ url_for('profiles.public', username=user['username']) }}">
+    {{ avatar(user['full_name'], user['avatar'], 'xs') }}<span class="sn-label">Profile</span></a>
+  <a class="sn-link sn-bottom {{ 'active' if ep.startswith('settings.') }}" href="{{ url_for('settings.index') }}">
+    {{ icon('settings', 26) }}<span class="sn-label">Settings</span></a>
+  <a class="sn-link" href="{{ url_for('auth.logout') }}">
+    {{ icon('logout', 26) }}<span class="sn-label">Log out</span></a>
+</nav>

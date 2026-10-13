@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}{{ server['name'] }} · {{ '#' ~ current['name'] if current }}{% endblock %}
+{% block body_class %}discord-page{% endblock %}
+{% block main %}
+{% include "_flashes.html" %}
+<div class="srv-app">
+  {% include "servers/_rail.html" %}
+
+  <aside class="srv-channels">
+    <div class="dropdown">
+      <button class="srv-name" data-bs-toggle="dropdown">
+        <span>{{ server['name'] }}</span>{{ icon('chevron', 18) }}
+      </button>
+      <ul class="dropdown-menu srv-menu">
+        <li><button class="dropdown-item" data-invite="{{ server['invite_code'] }}">Invite People</button></li>
+        {% if m.is_manager %}
+          <li><a class="dropdown-item" href="{{ url_for('servers.settings', server_id=server['id']) }}">Server Settings</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('servers.settings', server_id=server['id'], tab='channels') }}">Create Channel</a></li>
+        {% endif %}
+        {% if not m.is_owner %}
+          <li><hr class="dropdown-divider"></li>
+          <li><form method="POST" action="{{ url_for('servers.leave', server_id=server['id']) }}"
+                    onsubmit="return confirm('Leave this server?')">
+            <button class="dropdown-item text-danger">Leave Server</button></form></li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <div class="srv-scroll">
+      {% for g in groups %}
+        {% if g.category %}
+          <div class="cat">
+            <span>{{ g.category['name'] }}</span>
+            {% if m.is_manager %}
+              <a href="{{ url_for('servers.settings', server_id=server['id'], tab='channels') }}" title="Create channel">+</a>
+            {% endif %}
+          </div>
+        {% endif %}
+        {% for c in g.channels %}
+          <a class="ch {{ 'active' if current and current['id'] == c['id'] }}"
+             href="{{ url_for('servers.view', server_id=server['id'], channel_id=c['id']) }}">
+            {{ icon('lock' if c['is_private'] else ('megaphone' if c['kind'] == 'announcement' else 'hash'), 16) }}
+            <span>{{ c['name'] }}</span>
+            {% if m.is_manager %}
+              <i class="ch-gear" onclick="event.preventDefault(); location.href='{{ url_for('servers.settings', server_id=server['id'], tab='channels') }}'">{{ icon('settings', 14) }}</i>
+            {% endif %}
+          </a>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div class="srv-me">
+      {{ avatar(user['full_name'], user['avatar'], 'sm', href=url_for('profiles.public', username=user['username'])) }}
+      <div class="lh-sm"><b>{{ user['username'] }}</b><br><small>{{ '👑 Owner' if m.is_owner else 'Member' }}</small></div>
+      <a class="ms-auto srv-icon-btn" href="{{ url_for('settings.index') }}" title="User settings">{{ icon('settings', 18) }}</a>
+    </div>
+  </aside>
+
+  <section class="srv-chat">
+    {% if current %}
+      <header class="srv-chat-head">
+        {{ icon('megaphone' if current['kind'] == 'announcement' else 'hash', 22) }}
+        <b>{{ current['name'] }}</b>
+        {% if current['topic'] %}<span class="srv-divider"></span><span class="srv-muted">{{ current['topic'] }}</span>{% endif %}
+        <button class="srv-icon-btn ms-auto d-none d-xl-inline-flex" onclick="document.querySelector('.srv-members').classList.toggle('hidden')"
+                title="Member list">{{ icon('users', 22) }}</button>
+      </header>
+
+      {% with room_id=current['id'], room_key='channel_id', join_event='srv_join',
+              send_event='srv_send', log_class='srv-log', empty_icon='#',
+              attach_url=url_for('servers.attach', channel_id=current['id']), delete_event='srv_delete', edit_event='srv_edit',
+              can_manage=m.is_manager,
+              empty_title='Welcome to #' ~ current['name'] ~ '!',
+              empty_text='This is the start of the #' ~ current['name'] ~ ' channel.' %}
+        {% include "_chat_log.html" %}
+      {% endwith %}
+
+      {% if writable %}
+        <form class="srv-form" id="chat-form">
+          <div class="compose-bar" id="compose-bar" hidden>
+            <span class="cb-text"></span>
+            <button type="button" id="cb-close" aria-label="Cancel">&times;</button>
+          </div>
+          <div class="srv-input-wrap">
+            {% include "_chat_tools.html" %}
+            <input id="chat-input" placeholder="Message #{{ current['name'] }}" maxlength="2000" autocomplete="off">
+          </div>
+        </form>
+      {% else %}
+        <div class="srv-form locked">{{ icon('lock', 16) }} You do not have permission to send messages in this channel.</div>
+      {% endif %}
+    {% else %}
+      <div class="chat-empty"><div class="empty-ring">#</div><h4>No channels yet</h4>
+        <p class="srv-muted">An admin can create channels in Server Settings.</p></div>
+    {% endif %}
+  </section>
+
+  <aside class="srv-members">
+    {% for label, people in member_groups %}
+      <div class="mem-title">{{ label|upper }} — {{ people|length }}</div>
+      {% for p in people %}
+        <a class="mem" href="{{ url_for('profiles.public', username=p['username']) }}">
+          {{ avatar(p['username'], p['avatar'], kind='avatar-sm', style='background: ' ~ (p['color'] or '#7c3aed')) }}
+          <span style="{% if p['color'] %}color: {{ p['color'] }}{% endif %}">{{ p['username'] }}</span>
+        </a>
+      {% endfor %}
+    {% endfor %}
+  </aside>
+</div>
+
+<script>
+  document.querySelector("[data-invite]")?.addEventListener("click", (e) => {
+    const code = e.currentTarget.dataset.invite;
+    navigator.clipboard?.writeText(code);
+    alert("Invite code copied: " + code + "\nShare it so people can join from the Servers page.");
+  });
+</script>
+{% if current %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endif %}
+{% endblock %}

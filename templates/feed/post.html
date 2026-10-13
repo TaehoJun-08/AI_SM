@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}{{ post.title }} · @{{ post.username }}{% endblock %}
+{% block content %}
+{% set mine = post.innovator_id == user['id'] %}
+{% set pct = [100, (post.raised * 100 // post.funding_needed)]|min %}
+<div class="post-page">
+  <div class="post post-detail" data-id="{{ post.id }}">
+    {% with square=true %}{% include "feed/_media.html" %}{% endwith %}
+
+    <div class="detail-side">
+      <header class="post-head">
+        <a class="story-ring sm" href="{{ url_for('profiles.public', username=post.username) }}">
+          {{ avatar(post.full_name, post.avatar, 'sm') }}</a>
+        <a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
+        {% if mine %}
+          <div class="dropdown ms-auto">
+            <button class="icon-btn" data-bs-toggle="dropdown">{{ icon('dots', 22) }}</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('projects.edit', project_id=post.id) }}">Edit</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('reports.project', project_id=post.id) }}" target="_blank">PDF report</a></li>
+              <li><form method="POST" action="{{ url_for('projects.delete', project_id=post.id) }}"
+                        onsubmit="return confirm('Delete this post for good?')">
+                <button class="dropdown-item text-danger">Delete</button></form></li>
+            </ul>
+          </div>
+        {% endif %}
+      </header>
+
+      <div class="detail-scroll">
+        <h4 class="mb-1">{{ post.title }}</h4>
+        <div class="mb-2">
+          <span class="tag">{{ post.domain }}</span> <span class="tag">{{ post.stage|capitalize }}</span>
+        </div>
+        <p class="muted mb-2">{{ post.summary }}</p>
+        <p class="detail-desc">{{ post.description }}</p>
+        <div class="fund">
+          <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
+          <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
+        </div>
+        <hr>
+        <div class="comment-list latest-comments">
+          {% for c in comments %}
+            <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=c.username) }}">{{ c.username }}</a>
+              {{ c.body }}</p>
+          {% else %}
+            <p class="muted">No comments yet. Start the conversation.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="post-actions">
+        <button type="button" class="icon-btn like-btn {{ 'liked' if post.liked }}" data-like>{{ icon('heart', 26, post.liked) }}</button>
+        {% if not mine %}
+          <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
+            <button class="icon-btn">{{ icon('send', 26) }}</button></form>
+          {% if post.my_offer in ['pending', 'accepted'] %}
+        <button type="button" class="offer-state offer-{{ post.my_offer }} offer-edit" data-edit-offer="{{ post.my_offer_id }}"
+                  data-title="{{ post.title }}" data-amount="{{ post.my_amount }}" data-message="{{ post.my_message }}"
+                  title="Change your offer">{{ {'pending': 'Offer sent', 'accepted': 'Sponsoring ✓'}[post.my_offer] }} · ₹{{ '{:,}'.format(post.my_amount or 0) }} ✏️</button>
+      {% elif post.my_offer == 'declined' %}
+        <span class="offer-state offer-declined">Offer declined</span>
+          {% elif not post.accepts_offers %}
+        <span class="offer-state">Offers paused</span>
+      {% else %}
+            <button type="button" class="btn-sponsor ms-auto" data-sponsor="{{ post.id }}" data-title="{{ post.title }}">
+              {{ icon('rupee', 18) }} Sponsor</button>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="post-body pt-0">
+        <b class="like-count">{{ post.like_count }} like{{ '' if post.like_count == 1 else 's' }}</b>
+        <small class="d-block muted">{{ post.created_at[:10] }}</small>
+        <form class="comment-form" data-comment>
+          <input name="body" maxlength="500" placeholder="Add a comment…" autocomplete="off">
+          <button>Post</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% include "feed/_sponsor_dialog.html" %}
+<script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+{% endblock %}

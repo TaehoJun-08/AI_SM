@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en" data-bs-theme="light"{% if user %} data-pref="{{ user['theme'] }}" data-accent="{{ user['accent'] }}" data-calm="{{ user['calm'] }}" data-autoplay="{{ user['autoplay'] }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,40 +7,49 @@
   <link rel="stylesheet"
         href="{{ url_for('static', filename='bootstrap/bootstrap.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% if user %}
+  <script>
+    // Apply the saved theme before the page paints. "system" follows the computer's setting.
+    (function () {
+      var root = document.documentElement;
+      var t = root.dataset.pref;
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      root.dataset.theme = t;
+      root.dataset.bsTheme = t;
+    })();
+  </script>
+  {% endif %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% if user %}app-body{% endif %} {% block body_class %}{% endblock %}">
+{% if not user %}
 <nav class="navbar navbar-dark app-navbar px-3">
-    <a class="navbar-brand" href="{{ url_for('home') }}">✨ Sponsorship Matchmaker</a>
-
-
-   <div class="d-flex align-items-center gap-2">
-    {% if user %}
-      <a class="nav-pill" href="{{ url_for('dashboard.index') }}">Dashboard</a>
-      <a class="nav-pill" href="{{ url_for('spaces.index') }}">Spaces</a>
-      <a class="nav-pill" href="{{ url_for('dms.inbox') }}">Messages</a>
-      <a class="user-chip" href="{{ url_for('profiles.edit') }}" title="Your profile">
-        <span class="avatar">{{ user['full_name'][0] | upper }}</span>
-        <span class="d-none d-sm-block lh-sm">
-          <span class="d-block fw-semibold">@{{ user['username'] }}</span>
-          <small class="opacity-75">{{ user['full_name'] }} · <span class="text-capitalize">{{ user['role'] }}</span></small>
-        </span>
-      </a>
-      <a class="btn btn-sm btn-outline-light rounded-pill px-3"
-         href="{{ url_for('auth.logout') }}">Logout</a>
-    {% else %}
-      <a class="btn btn-sm btn-outline-light rounded-pill px-3"
-         href="{{ url_for('auth.login') }}">Login</a>
-      <a class="btn btn-sm btn-light rounded-pill px-3"
-         href="{{ url_for('auth.register') }}">Register</a>
-    {% endif %}
+  <a class="navbar-brand" href="{{ url_for('feed.index') }}">✨ Sponsorship Matchmaker</a>
+  <div class="d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-light rounded-pill px-3"
+       href="{{ url_for('auth.login') }}">Login</a>
+    <a class="btn btn-sm btn-light rounded-pill px-3"
+       href="{{ url_for('auth.register') }}">Register</a>
   </div>
 </nav>
+{% endif %}
 
 {% block main %}
-<div class="container mt-4">
-  {% include "_flashes.html" %}
-  {% block content %}{% endblock %}
+<div class="{{ 'shell' if user else '' }}">
+  {% if user %}{% include "_sidenav.html" %}{% endif %}
+  <div class="{{ 'app-main' if user else 'container mt-4' }}">
+    {% include "_flashes.html" %}
+    {% block content %}{% endblock %}
+  </div>
 </div>
 {% endblock %}
+
+<script src="{{ url_for('static', filename='bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script>
+  // Flash messages float on top and fade away by themselves.
+  document.querySelectorAll(".app-body .flash-stack").forEach((el) => {
+    setTimeout(() => el.classList.add("flash-hide"), 4500);
+  });
+</script>
 </body>
 </html>

@@ -1,45 +1,54 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template
-from db import close_db
+from flask import Flask, flash, redirect, request, url_for
+from db import close_db, get_db
 from helpers import current_user
 from auth.routes import auth_bp
-from dashboard.routes import dashboard_bp
+from feed.routes import feed_bp
 from projects.routes import projects_bp
-from sponsors.routes import sponsors_bp
 from interests.routes import interests_bp
-from spaces.routes import spaces_bp
+from servers.routes import servers_bp
 from dms.routes import dms_bp
 from reports.routes import reports_bp
 from profiles.routes import profiles_bp
+from settings.routes import settings_bp
 from extensions import socketio
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # all files of one post together
 app.teardown_appcontext(close_db)
 app.register_blueprint(auth_bp)
-app.register_blueprint(dashboard_bp)
+app.register_blueprint(feed_bp)
 app.register_blueprint(projects_bp)
-app.register_blueprint(sponsors_bp)
 app.register_blueprint(interests_bp)
-app.register_blueprint(spaces_bp)
+app.register_blueprint(servers_bp)
 app.register_blueprint(dms_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(profiles_bp)
+app.register_blueprint(settings_bp)
 socketio.init_app(app)
 
-import spaces.chat  # registers the chat events
+import servers.chat  # registers the server chat events
 import dms.chat  # registers the DM events
 
 @app.context_processor
 def inject_user():
-    return {"user": current_user()}
+    user = current_user()
+    pending = 0
+    if user:
+        pending = get_db().execute(
+            """SELECT COUNT(*) FROM interests i JOIN projects p ON p.id = i.project_id
+               WHERE p.innovator_id = ? AND i.status = 'pending'""", (user["id"],)).fetchone()[0]
+    return {"user": user, "pending_offers": pending, "giphy_key": os.getenv("GIPHY_API_KEY", "")}
 
-@app.route("/")
-def home():
-    return render_template("home.html")
+@app.errorhandler(413)
+def too_large(error):
+    flash("Those files are too big. Keep a post under 500 MB in total (100 MB per video).")
+    return redirect(request.referrer or url_for("feed.index"))
+
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)

@@ -1,0 +1,14 @@
+{% from "_icons.html" import icon %}
+<nav class="srv-rail">
+  <a class="rail-btn home" href="{{ url_for('feed.index') }}" title="Back to the feed">✨</a>
+  <div class="rail-sep"></div>
+  {% for s in rail %}
+    <a class="rail-btn {{ 'active' if server and server['id'] == s['id'] }}"
+       href="{{ url_for('servers.view', server_id=s['id']) }}" title="{{ s['name'] }}"
+       style="--c: {{ s['color'] }}">
+      {{ s['icon'] or s['name'][:2]|upper }}
+    </a>
+  {% endfor %}
+  <a class="rail-btn add" href="{{ url_for('servers.home') }}#create" title="Add a server">+</a>
+  <a class="rail-btn add" href="{{ url_for('servers.home') }}" title="Explore servers">{{ icon('compass', 22) }}</a>
+</nav>

@@ -1,0 +1,28 @@
+{% from "_icons.html" import icon %}
+{# The photos/videos of a post as a swipeable carousel. Needs: post (with media list). Optional: square. #}
+<div class="post-media {{ 'square' if square }}" data-like-target>
+  {% if post.media %}
+    <div class="slides" data-slides>
+      {% for m in post.media %}
+        <div class="slide">
+          {% if m.type == 'image' %}
+            <img src="{{ url_for('static', filename=m.path) }}" alt="{{ post.title }}" loading="lazy">
+          {% else %}
+            <video src="{{ url_for('static', filename=m.path) }}" muted loop playsinline preload="metadata"
+                   data-autoplay {{ 'controls' if square }}></video>
+            {% if not square %}<button type="button" class="video-sound" data-sound aria-label="Toggle sound">{{ icon('mute', 18) }}</button>{% endif %}
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% if post.media|length > 1 %}
+      <button type="button" class="slide-nav prev" data-slide="-1" aria-label="Previous">‹</button>
+      <button type="button" class="slide-nav next" data-slide="1" aria-label="Next">›</button>
+      <span class="slide-count" data-count>1/{{ post.media|length }}</span>
+      <div class="dots">{% for m in post.media %}<i class="{{ 'on' if loop.first }}"></i>{% endfor %}</div>
+    {% endif %}
+  {% else %}
+    <div class="text-card grad-{{ post.id % 6 }}"><h3>{{ post.title }}</h3><p>{{ post.summary }}</p></div>
+  {% endif %}
+  <span class="heart-burst">{{ icon('heart', 96, true) }}</span>
+</div>
