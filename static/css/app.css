@@ -792,3 +792,62 @@ dialog.modal-card::backdrop { background: rgba(20, 8, 50, .6); backdrop-filter: 
 .call-ctl.hang { background: #ef4444; }
 .call-error { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); max-width: 90vw; padding: 8px 16px; border-radius: 12px; background: rgba(239, 68, 68, .9); font-size: .9rem; }
 .call-error[hidden] { display: none; }
+
+/* ---------- Servers home: a living space scene + Discord-style add/explore dialogs ---------- */
+.srv-home.sky-mode { padding: 0; position: relative; overflow: hidden; background: #03020a; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sky-caption { position: absolute; left: 32px; bottom: 26px; max-width: min(560px, 80%); color: #e8ecf8; pointer-events: none; display: flex; flex-direction: column; gap: 4px; opacity: 0; animation: sky-in 2.4s 1.2s ease forwards; }
+.sky-caption b { font-size: .78rem; font-weight: 600; letter-spacing: .32em; text-transform: uppercase; }
+.sky-caption span { font-size: .8rem; font-weight: 300; letter-spacing: .06em; opacity: .7; }
+.sky-caption kbd { background: rgba(255, 255, 255, .12); color: #fff; border-radius: 4px; padding: 0 5px; font-size: .72rem; }
+@keyframes sky-in { to { opacity: 1; } }
+
+.dc-modal { border: 0; padding: 0; border-radius: 14px; background: #313338; color: #dbdee1; width: min(440px, 94vw); max-height: 90vh; overflow: hidden; box-shadow: 0 20px 70px rgba(0, 0, 0, .6); }
+.dc-modal.wide { width: min(860px, 95vw); padding: 28px 28px 24px; overflow-y: auto; }
+.dc-modal::backdrop { background: rgba(0, 0, 0, .72); }
+.dc-modal[open] { animation: dc-pop .18s ease-out; }
+@keyframes dc-pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+.dc-x { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: none; color: #949ba4; cursor: pointer; z-index: 2; }
+.dc-x:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.dc-modal h3 { text-align: center; font-weight: 800; font-size: 1.5rem; margin: 0 0 8px; color: #f2f3f5; }
+.dc-modal.wide h3 { text-align: left; }
+.dc-sub { text-align: center; color: #b5bac1; font-size: .95rem; margin: 0 0 18px; }
+.dc-modal.wide .dc-sub { text-align: left; }
+.dc-modal section { display: none; padding: 26px 22px 0; }
+.dc-modal section.on { display: block; }
+.dc-option { width: 100%; display: flex; align-items: center; gap: 14px; padding: 8px 16px 8px 8px; border: 1px solid #3f4147; border-radius: 10px; background: none; color: #f2f3f5; cursor: pointer; text-align: left; transition: background .15s; }
+.dc-option:hover { background: #3a3c42; }
+.dc-option b { flex: 1; font-size: 1rem; }
+.dc-option i { font-style: normal; font-size: 1.5rem; color: #b5bac1; }
+.dc-opt-icon { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #5865f2, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.dc-foot { margin: 22px -22px 0; padding: 16px 22px 20px; background: #2b2d31; text-align: center; }
+.dc-foot h6 { font-weight: 700; margin: 0 0 10px; color: #f2f3f5; }
+.dc-modal label { display: block; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #b5bac1; margin: 14px 0 7px; }
+.dc-modal label em { color: #f23f42; font-style: normal; }
+.dc-modal input[type=text], .dc-modal input:not([type]), .dc-modal input[name=code], .dc-modal input[name=name], .dc-modal input[name=description], .dc-emoji { width: 100%; padding: 11px 12px; border: 0; border-radius: 6px; background: #1e1f22; color: #dbdee1; outline: 0; }
+.dc-modal input:focus { box-shadow: 0 0 0 2px #5865f2; }
+.dc-row { display: flex; justify-content: center; gap: 22px; }
+.dc-pick { text-align: center; }
+.dc-pick label { margin-top: 0; }
+.dc-emoji { width: 84px !important; height: 84px; border-radius: 50% !important; text-align: center; font-size: 2rem; border: 2px dashed #4e5058 !important; }
+.dc-color { width: 84px; height: 84px; padding: 0; border: 2px dashed #4e5058; border-radius: 50%; background: none; cursor: pointer; overflow: hidden; }
+.dc-color::-webkit-color-swatch-wrapper { padding: 0; } .dc-color::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.dc-check { display: flex !important; align-items: center; gap: 8px; text-transform: none !important; letter-spacing: 0 !important; font-size: .9rem !important; font-weight: 500 !important; color: #dbdee1 !important; }
+.dc-hint { font-size: .8rem; color: #949ba4; margin: 8px 0 0; }
+.dc-hint code { background: #1e1f22; padding: 1px 6px; border-radius: 4px; color: #dbdee1; }
+.dc-actions { display: flex; align-items: center; justify-content: space-between; margin: 22px -22px 0; padding: 16px 22px; background: #2b2d31; }
+.dc-btn { border: 0; border-radius: 4px; padding: 10px 22px; background: #5865f2; color: #fff; font-weight: 600; cursor: pointer; transition: background .15s; }
+.dc-btn:hover { background: #4752c4; }
+.dc-btn.alt { width: 100%; background: #4e5058; }
+.dc-btn.alt:hover { background: #6d6f78; }
+.dc-btn.small { padding: 6px 16px; font-size: .85rem; }
+.dc-link { border: 0; background: none; color: #dbdee1; cursor: pointer; padding: 10px 6px; }
+.dc-link:hover { text-decoration: underline; }
+.dc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 18px; }
+.dc-tile { position: relative; background: #2b2d31; border-radius: 10px; overflow: hidden; padding: 0 14px 14px; display: flex; flex-direction: column; transition: transform .2s, box-shadow .2s; }
+.dc-tile:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0, 0, 0, .45); }
+.dc-banner { height: 64px; margin: 0 -14px; background: linear-gradient(135deg, var(--c), #141226); }
+.dc-tile-icon { margin-top: -26px; border: 4px solid #2b2d31; width: 52px; height: 52px; }
+.dc-tile b { color: #f2f3f5; margin-top: 8px; }
+.dc-tile p { color: #b5bac1; font-size: .85rem; margin: 4px 0 12px; flex: 1; }
+.dc-tile-foot { display: flex; align-items: center; justify-content: space-between; color: #949ba4; }

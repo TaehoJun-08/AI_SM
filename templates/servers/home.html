@@ -2,54 +2,99 @@
 {% from "_icons.html" import icon %}
 {% block title %}Servers · Sponsorship Matchmaker{% endblock %}
 {% block body_class %}discord-page{% endblock %}
+
 {% block main %}
 {% include "_flashes.html" %}
 <div class="srv-app">
   {% include "servers/_rail.html" %}
-  <main class="srv-home">
-    <h2>Servers</h2>
-    <p class="srv-muted">Hang out with your team, your sponsors or your community.</p>
+  <main class="srv-home sky-mode">
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="sky-caption">
+      <b id="sky-title">Deep space</b>
+      <span id="sky-sub">Pick a server on the left, or press <kbd>+</kbd> to start one.</span>
+    </div>
 
-    <div class="srv-cards" id="create">
-      <form method="POST" action="{{ url_for('servers.create') }}" class="srv-card">
-        <h5>Create your own</h5>
-        <label>Server name</label>
-        <input name="name" maxlength="40" placeholder="e.g. Green Farm Labs" required>
-        <div class="srv-row">
-          <div><label>Icon (emoji)</label><input name="icon" maxlength="4" placeholder="🌱"></div>
-          <div><label>Colour</label><input name="color" type="color" value="#5865f2"></div>
+    {# ---- Discord-style "add a server" flow: choose -> create / join ---- #}
+    <dialog class="dc-modal" id="dlg-add" {% if not rail %}data-auto{% endif %}>
+      <button type="button" class="dc-x" data-close aria-label="Close">✕</button>
+
+      <section data-step="choose" class="on">
+        <h3>Create a server</h3>
+        <p class="dc-sub">Your server is where you and your team hang out. Make yours and start talking.</p>
+        <button type="button" class="dc-option" data-go="create">
+          <span class="dc-opt-icon">🚀</span><b>Create my own</b><i>›</i>
+        </button>
+        <div class="dc-foot">
+          <h6>Have an invite already?</h6>
+          <button type="button" class="dc-btn alt" data-go="join">Join a server</button>
         </div>
-        <label>Description</label>
-        <input name="description" maxlength="200" placeholder="What is this server about?">
-        <label class="srv-check"><input type="checkbox" name="private"> Make it private (hide from Explore)</label>
-        <button class="srv-btn">Create server</button>
-      </form>
+      </section>
 
-      <form method="POST" action="{{ url_for('servers.join_code') }}" class="srv-card">
-        <h5>Have an invite?</h5>
-        <label>Invite code</label>
-        <input name="code" maxlength="8" placeholder="A1B2C3D4" required style="text-transform: uppercase">
-        <button class="srv-btn">Join server</button>
-        <p class="srv-muted small mb-0 mt-3">Invite codes live in a server's name menu → Invite People.</p>
-      </form>
-    </div>
-
-    <h4 class="mt-5">Explore public servers</h4>
-    <div class="srv-explore" data-region="explore" data-live="servers">
-      {% for s in explore %}
-        <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="srv-card explore">
-          <span class="srv-icon" style="--c: {{ s['color'] }}">{{ s['icon'] or s['name'][:2]|upper }}</span>
-          <div class="flex-grow-1">
-            <b>{{ s['name'] }}</b>
-            <div class="srv-muted small">{{ s['description'] or 'No description yet.' }}</div>
-            <div class="srv-muted small">{{ s['members'] }} member{{ '' if s['members'] == 1 else 's' }}</div>
+      <section data-step="create">
+        <h3>Customise your server</h3>
+        <p class="dc-sub">Give your new server a personality with a name and an icon. You can always change it later.</p>
+        <form method="POST" action="{{ url_for('servers.create') }}">
+          <div class="dc-row">
+            <div class="dc-pick">
+              <label>Icon</label>
+              <input name="icon" maxlength="4" placeholder="🌱" class="dc-emoji">
+            </div>
+            <div class="dc-pick">
+              <label>Colour</label>
+              <input name="color" type="color" value="#5865f2" class="dc-color">
+            </div>
           </div>
-          <button class="srv-btn small">Join</button>
+          <label>Server name</label>
+          <input name="name" maxlength="40" placeholder="e.g. Green Farm Labs" required>
+          <label>Description</label>
+          <input name="description" maxlength="200" placeholder="What is this server about?">
+          <label class="dc-check"><input type="checkbox" name="private"> Private: hide it from Explore</label>
+          <div class="dc-actions">
+            <button type="button" class="dc-link" data-go="choose">Back</button>
+            <button class="dc-btn">Create</button>
+          </div>
         </form>
-      {% else %}
-        <p class="srv-muted">Nothing to explore yet. Create the first server!</p>
-      {% endfor %}
-    </div>
+      </section>
+
+      <section data-step="join">
+        <h3>Join a server</h3>
+        <p class="dc-sub">Enter an invite below to join an existing server.</p>
+        <form method="POST" action="{{ url_for('servers.join_code') }}">
+          <label>Invite code <em>*</em></label>
+          <input name="code" maxlength="8" placeholder="A1B2C3D4" required style="text-transform: uppercase" autocomplete="off">
+          <p class="dc-hint">Invites look like <code>A1B2C3D4</code>. Find one in a server's name menu → Invite People.</p>
+          <div class="dc-actions">
+            <button type="button" class="dc-link" data-go="choose">Back</button>
+            <button class="dc-btn">Join server</button>
+          </div>
+        </form>
+      </section>
+    </dialog>
+
+    {# ---- Explore ---- #}
+    <dialog class="dc-modal wide" id="dlg-explore">
+      <button type="button" class="dc-x" data-close aria-label="Close">✕</button>
+      <h3>Explore servers</h3>
+      <p class="dc-sub">Public servers you can hop into right now.</p>
+      <div class="dc-grid">
+        {% for s in explore %}
+          <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile">
+            <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
+            <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">{{ s['icon'] or s['name'][:2]|upper }}</span>
+            <b>{{ s['name'] }}</b>
+            <p>{{ s['description'] or 'No description yet.' }}</p>
+            <div class="dc-tile-foot">
+              <small>{{ s['members'] }} member{{ '' if s['members'] == 1 else 's' }}</small>
+              <button class="dc-btn small">Join</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="dc-sub">Nothing to explore yet. Be the first to create a server!</p>
+        {% endfor %}
+      </div>
+    </dialog>
+
+    <script src="{{ url_for('static', filename='js/sky.js') }}"></script>
   </main>
 </div>
 {% endblock %}
