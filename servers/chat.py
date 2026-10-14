@@ -4,6 +4,8 @@ from extensions import socketio
 from db import get_db
 from servers.routes import channel_for, can_write, MSG_SELECT, valid_reply
 from media import delete_media, normalize_gif_url
+import live
+import unread
 
 
 @socketio.on("srv_join")
@@ -35,6 +37,7 @@ def on_send(data):
     message = db.execute(f"{MSG_SELECT} WHERE m.id = :mid",
                          {"mid": cur.lastrowid, "sid": channel["server_id"]}).fetchone()
     emit("message", dict(message), to=f"srv-{channel_id}")
+    live.notify_channel(db, channel, user_id, live.preview("" if gif else body, "image" if gif else None))
 
 
 @socketio.on("srv_delete")
@@ -77,3 +80,13 @@ def on_edit(data):
     db.execute("UPDATE server_messages SET body = ?, edited = 1 WHERE id = ?", (body, message_id))
     db.commit()
     emit("edited", {"id": message_id, "body": body}, to=f"srv-{row['channel_id']}")
+
+
+@socketio.on("srv_seen")
+def on_srv_seen(data):
+    """The channel is open on someone's screen and a message arrived: it counts as read."""
+    channel_id = data.get("channel_id")
+    user_id = session.get("user_id")
+    if user_id and isinstance(channel_id, int) and channel_for(channel_id, user_id)[1]:
+        unread.mark_channel(channel_id, user_id)
+        live.refresh_badges(user_id)

@@ -4,6 +4,8 @@ from extensions import socketio
 from db import get_db
 from dms.routes import get_thread, can_send, dm_message, valid_reply
 from media import delete_media, normalize_gif_url
+import live
+import unread
 
 
 @socketio.on("dm_join")
@@ -34,6 +36,8 @@ def on_dm_send(data):
     )
     db.commit()
     emit("message", dm_message(db, cur.lastrowid), to=f"dm-{thread_id}")
+    live.inbox_changed(thread_id)
+    live.notify_dm(db, thread_id, user_id, live.preview("" if gif else body, "image" if gif else None))
 
 
 @socketio.on("dm_delete")
@@ -52,6 +56,7 @@ def on_dm_delete(data):
     db.commit()
     delete_media(row["attachment"])
     emit("deleted", {"id": message_id}, to=f"dm-{row['thread_id']}")
+    live.inbox_changed(row["thread_id"])
 
 
 @socketio.on("dm_edit")
@@ -70,3 +75,16 @@ def on_dm_edit(data):
     db.execute("UPDATE dm_messages SET body = ?, edited = 1 WHERE id = ?", (body, message_id))
     db.commit()
     emit("edited", {"id": message_id, "body": body}, to=f"dm-{row['thread_id']}")
+    live.inbox_changed(row["thread_id"])
+
+
+@socketio.on("dm_seen")
+def on_dm_seen(data):
+    """The chat is open on someone's screen and a message arrived: it counts as read."""
+    thread_id = data.get("thread_id")
+    user_id = session.get("user_id")
+    if user_id and isinstance(thread_id, int) and get_thread(thread_id, user_id):
+        top = unread.mark_dm(thread_id, user_id)
+        live.refresh_badges(user_id)
+        live.inbox_changed(thread_id)
+        emit("seen", {"user_id": user_id, "upto": top}, to=f"dm-{thread_id}")

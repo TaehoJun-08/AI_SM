@@ -1,6 +1,6 @@
 {% from "_icons.html" import icon %}
 {# The photos/videos of a post as a swipeable carousel. Needs: post (with media list). Optional: square. #}
-<div class="post-media {{ 'square' if square }}" data-like-target>
+<div class="post-media {{ 'square' if square }}" data-like-target data-sig="{% for m in post.media %}{{ m.path }}|{% endfor %}">
   {% if post.media %}
     <div class="slides" data-slides>
       {% for m in post.media %}

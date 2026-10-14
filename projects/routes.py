@@ -2,6 +2,7 @@ from flask import (Blueprint, render_template, request,
                    redirect, url_for, flash, session, abort)
 from db import get_db
 from helpers import login_required
+import live
 from media import save_many, delete_media, MAX_PER_POST
 
 projects_bp = Blueprint("projects", __name__, url_prefix="/projects")
@@ -83,6 +84,8 @@ def new():
     )
     add_media(db, cur.lastrowid, saved)
     db.commit()
+    live.to_feed("post_new", {"id": cur.lastrowid})
+    live.touch(["posts"])
     flash("Your project is live! ✨")
     return redirect(url_for("feed.post", post_id=cur.lastrowid))
 
@@ -102,6 +105,8 @@ def delete(project_id):
         db.commit()
         for path in paths:
             delete_media(path)
+        live.to_feed("post_deleted", {"id": project_id})
+        live.touch(["posts"])
         flash("Project deleted.")
     username = db.execute("SELECT username FROM users WHERE id = ?",
                           (session["user_id"],)).fetchone()[0]
@@ -152,5 +157,7 @@ def edit(project_id):
     db.commit()
     for media_id in removed:
         delete_media(existing[media_id])
+    live.to_feed("post_changed", {"id": project_id})
+    live.touch(["posts"])
     flash("Project updated. ✨")
     return redirect(url_for("feed.post", post_id=project_id))

@@ -7,7 +7,7 @@ const bar = document.getElementById("compose-bar");
 const myId = Number(log.dataset.me);
 const canManage = log.dataset.manage === "1";
 const room = { [log.dataset.key]: Number(log.dataset.room) };
-const socket = io();
+const socket = window.liveSocket;   // the page-wide socket from live.js
 
 const srcOf = (path) => (/^https?:/.test(path) ? path : "/static/" + path);
 const stickToBottom = () => { log.scrollTop = log.scrollHeight; };
@@ -91,8 +91,66 @@ function addMessage(m) {
   stickToBottom();
 }
 
-socket.on("connect", () => socket.emit(log.dataset.join, room));
-socket.on("message", addMessage);
+const joinRoom = () => socket.emit(log.dataset.join, room);
+socket.on("connect", joinRoom);      // also after a dropped connection comes back
+if (socket.connected) joinRoom();
+// A message that arrives while this chat is open on screen counts as read.
+const seenEvent = log.dataset.key === "thread_id" ? "dm_seen" : "srv_seen";
+const markSeen = () => { if (document.visibilityState === "visible") socket.emit(seenEvent, room); };
+socket.on("message", (m) => {
+  addMessage(m);
+  stopTyping(m.sender_id);
+  if (m.sender_id !== myId) markSeen();
+});
+document.addEventListener("visibilitychange", markSeen);
+
+// ---------- "X is typing…" and "Seen" ----------
+const kind = log.dataset.key === "thread_id" ? "dm" : "srv";
+const typers = new Map();                     // user id -> {name, timer}
+const typingNote = document.getElementById("typing");
+
+function showTyping() {
+  if (!typingNote) return;
+  const names = [...typers.values()].map((t) => t.name);
+  typingNote.hidden = names.length === 0;
+  typingNote.textContent = names.length === 1 ? `${names[0]} is typing…`
+    : names.length === 2 ? `${names[0]} and ${names[1]} are typing…` : names.length ? "Several people are typing…" : "";
+}
+function stopTyping(userId) {
+  const t = typers.get(userId);
+  if (t) { clearTimeout(t.timer); typers.delete(userId); showTyping(); }
+}
+socket.on("typing", (d) => {
+  if (d.kind !== kind || d.id !== room[log.dataset.key]) return;
+  stopTyping(d.user_id);
+  typers.set(d.user_id, { name: d.name, timer: setTimeout(() => stopTyping(d.user_id), 3500) });
+  showTyping();
+});
+let lastTyped = 0;
+input?.addEventListener("input", () => {
+  if (Date.now() - lastTyped < 2000 || !input.value) return;
+  lastTyped = Date.now();
+  socket.emit("typing", { kind: kind, id: room[log.dataset.key] });
+});
+
+// DMs: a "Seen" mark under your last message once the other person has read it.
+let seenUpto = Number(log.dataset.seenUpto) || 0;
+function renderSeen() {
+  log.querySelectorAll(".seen-mark").forEach((el) => el.remove());
+  const last = log.lastElementChild;
+  if (kind !== "dm" || !last || !last.classList.contains("mine") || Number(last.dataset.id) > seenUpto) return;
+  const mark = document.createElement("div");
+  mark.className = "seen-mark";
+  mark.textContent = "Seen";
+  last.querySelector(".msg-main").appendChild(mark);
+}
+socket.on("seen", (d) => {
+  if (d.user_id === myId) return;
+  seenUpto = Math.max(seenUpto, d.upto);
+  renderSeen();
+});
+socket.on("message", () => { renderSeen(); });
+renderSeen();
 socket.on("deleted", (data) => log.querySelector(`.msg[data-id="${data.id}"]`)?.remove());
 socket.on("edited", (data) => {
   const row = log.querySelector(`.msg[data-id="${data.id}"]`);

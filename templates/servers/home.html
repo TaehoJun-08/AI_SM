@@ -35,7 +35,7 @@
     </div>
 
     <h4 class="mt-5">Explore public servers</h4>
-    <div class="srv-explore">
+    <div class="srv-explore" data-region="explore" data-live="servers">
       {% for s in explore %}
         <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="srv-card explore">
           <span class="srv-icon" style="--c: {{ s['color'] }}">{{ s['icon'] or s['name'][:2]|upper }}</span>

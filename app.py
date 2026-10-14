@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, request, url_for
+from flask import Flask, flash, redirect, request, session, url_for
 from db import close_db, get_db, init_db
 from helpers import current_user
 from auth.routes import auth_bp
@@ -13,6 +13,10 @@ from reports.routes import reports_bp
 from profiles.routes import profiles_bp
 from settings.routes import settings_bp
 from extensions import socketio
+import unread
+import presence
+import calls
+import mutes
 
 load_dotenv()
 
@@ -30,20 +34,27 @@ app.register_blueprint(dms_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(profiles_bp)
 app.register_blueprint(settings_bp)
+from live import live_bp
+app.register_blueprint(live_bp)
+from callsvc import calls_bp
+app.register_blueprint(calls_bp)
 socketio.init_app(app)
 
 import servers.chat  # registers the server chat events
 import dms.chat  # registers the DM events
+import live  # registers the per-user real-time rooms
+import callsvc  # registers the call signalling events
+
+app.jinja_env.globals["presence"] = presence.status_of
+app.jinja_env.globals["call_count"] = calls.count
+app.jinja_env.globals["muted"] = lambda kind, target: mutes.is_muted(session.get("user_id"), kind, target)
+
 
 @app.context_processor
 def inject_user():
     user = current_user()
-    pending = 0
-    if user:
-        pending = get_db().execute(
-            """SELECT COUNT(*) FROM interests i JOIN projects p ON p.id = i.project_id
-               WHERE p.innovator_id = ? AND i.status = 'pending'""", (user["id"],)).fetchone()[0]
-    return {"user": user, "pending_offers": pending, "giphy_key": os.getenv("GIPHY_API_KEY", "")}
+    badges = unread.all_counts(user["id"]) if user else None
+    return {"user": user, "badges": badges, "giphy_key": os.getenv("GIPHY_API_KEY", "")}
 
 @app.errorhandler(413)
 def too_large(error):

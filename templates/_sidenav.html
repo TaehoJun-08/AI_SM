@@ -1,6 +1,9 @@
 {% from "_icons.html" import icon %}
 {% from "_avatar.html" import avatar %}
 {% set ep = request.endpoint or '' %}
+{% macro badge(name, n) -%}
+<i class="sn-badge" data-badge="{{ name }}" {% if not n %}hidden{% endif %}>{{ n if n < 100 else '99+' }}</i>
+{%- endmacro %}
 <nav class="sidenav">
   <a class="sn-logo" href="{{ url_for('feed.index') }}" title="Sponsorship Matchmaker">
     <span class="sn-logo-mark">✨</span><span class="sn-label sn-brand">Matchmaker</span>
@@ -12,16 +15,30 @@
   <a class="sn-link {{ 'active' if ep == 'feed.search' }}" href="{{ url_for('feed.search') }}">
     {{ icon('search', 26) }}<span class="sn-label">Search</span></a>
   <a class="sn-link {{ 'active' if ep.startswith('dms.') }}" href="{{ url_for('dms.inbox') }}">
-    {{ icon('send', 26) }}<span class="sn-label">Messages</span></a>
+    <span class="sn-icon">{{ icon('send', 26) }}{{ badge('dms', badges.dms) }}</span>
+    <span class="sn-label">Messages</span></a>
   <a class="sn-link {{ 'active' if ep == 'feed.activity' }}" href="{{ url_for('feed.activity') }}">
     <span class="sn-icon">{{ icon('heart', 26, ep == 'feed.activity') }}
-      {% if pending_offers %}<i class="sn-badge">{{ pending_offers }}</i>{% endif %}</span>
+      {{ badge('activity', badges.activity) }}</span>
     <span class="sn-label">Activity</span></a>
   <a class="sn-link" href="{{ url_for('servers.home') }}">
-    {{ icon('users', 26) }}<span class="sn-label">Servers</span></a>
+    <span class="sn-icon">{{ icon('users', 26) }}{{ badge('servers', badges.server_total) }}</span>
+    <span class="sn-label">Servers</span></a>
   <a class="sn-link {{ 'active' if ep.startswith('profiles.') }}" href="{{ url_for('profiles.public', username=user['username']) }}">
-    {{ avatar(user['full_name'], user['avatar'], 'xs') }}<span class="sn-label">Profile</span></a>
-  <a class="sn-link sn-bottom {{ 'active' if ep.startswith('settings.') }}" href="{{ url_for('settings.index') }}">
+    {{ avatar(user['full_name'], user['avatar'], 'xs', uid=user['id']) }}<span class="sn-label">Profile</span></a>
+  {% set st = user['status'] %}
+  {% set labels = {'online': 'Online', 'idle': 'Idle', 'dnd': 'Do not disturb', 'invisible': 'Invisible'} %}
+  <div class="dropup sn-bottom">
+    <button class="sn-link" data-bs-toggle="dropdown" title="Set your status">
+      <span class="sn-icon"><i class="pdot solo s-{{ st }}" data-my-status></i></span>
+      <span class="sn-label" data-my-status-label>{{ labels[st] }}</span></button>
+    <ul class="dropdown-menu status-menu">
+      {% for key, label in labels.items() %}
+        <li><button class="dropdown-item" data-status="{{ key }}"><i class="pdot solo s-{{ key }}"></i> {{ label }}</button></li>
+      {% endfor %}
+    </ul>
+  </div>
+  <a class="sn-link {{ 'active' if ep.startswith('settings.') }}" href="{{ url_for('settings.index') }}">
     {{ icon('settings', 26) }}<span class="sn-label">Settings</span></a>
   <a class="sn-link" href="{{ url_for('auth.logout') }}">
     {{ icon('logout', 26) }}<span class="sn-label">Log out</span></a>

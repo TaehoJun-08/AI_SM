@@ -76,10 +76,27 @@ def add_user_settings(conn):
         "autoplay": "INTEGER NOT NULL DEFAULT 1",
         "dm_policy": "TEXT NOT NULL DEFAULT 'everyone'",
         "accepts_offers": "INTEGER NOT NULL DEFAULT 1",
+        "activity_seen": "TEXT",
+        "status": "TEXT NOT NULL DEFAULT 'online'",
     }
     for name, definition in wanted.items():
         if name not in columns:
             conn.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
+    interest_cols = [row[1] for row in conn.execute("PRAGMA table_info(interests)")]
+    if interest_cols and "responded_at" not in interest_cols:
+        conn.execute("ALTER TABLE interests ADD COLUMN responded_at TEXT")
+
+
+def start_notifications(conn):
+    """First run with notifications: everything that already exists counts as read."""
+    conn.execute("UPDATE users SET activity_seen = datetime('now','localtime') WHERE activity_seen IS NULL")
+    conn.execute("""INSERT OR IGNORE INTO dm_reads (thread_id, user_id, last_id)
+                    SELECT t.id, u.uid, COALESCE((SELECT MAX(id) FROM dm_messages WHERE thread_id = t.id), 0)
+                    FROM dm_threads t JOIN (SELECT user_a AS uid, id FROM dm_threads
+                                            UNION SELECT user_b, id FROM dm_threads) u ON u.id = t.id""")
+    conn.execute("""INSERT OR IGNORE INTO channel_reads (channel_id, user_id, last_id)
+                    SELECT c.id, sm.user_id, COALESCE((SELECT MAX(id) FROM server_messages WHERE channel_id = c.id), 0)
+                    FROM server_channels c JOIN server_members sm ON sm.server_id = c.server_id""")
 
 
 def move_post_media(conn):
@@ -128,8 +145,12 @@ def init_db():
     rebuild = needs_withdrawn_status(conn)
     if rebuild:
         conn.execute("ALTER TABLE interests RENAME TO interests_old")
+    first_notifications = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'dm_reads'").fetchone() is None
     with open(SCHEMA_PATH, encoding="utf-8") as f:
         conn.executescript(f.read())
+    if first_notifications:
+        start_notifications(conn)
     move_post_media(conn)
     if rebuild_chat:
         conn.execute("""INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)

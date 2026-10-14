@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% block title %}{{ 'Call' }} · {{ info['title'] }}{% endblock %}
+{% block body_class %}call-page{% endblock %}
+{% block main %}
+<div class="call-room" id="call-room" data-key="{{ key }}" data-video="{{ 1 if want_video else 0 }}" data-ring="{{ 1 if ring else 0 }}"
+     data-me="{{ me['id'] }}" data-back="{{ info['back'] }}" data-kind="{{ info['kind'] }}">
+  <header class="call-top">
+    <div class="call-title">
+      <b>{{ info['title'] }}</b>
+      <small id="call-status">Connecting…</small>
+    </div>
+    <span class="call-timer" id="call-timer" hidden>00:00</span>
+  </header>
+
+  <main class="call-grid" id="call-grid" data-count="1"></main>
+
+  <footer class="call-bar">
+    <button type="button" class="call-ctl" id="ctl-mic" title="Mute / unmute">🎤</button>
+    <button type="button" class="call-ctl" id="ctl-cam" title="Camera on / off">📷</button>
+    <button type="button" class="call-ctl" id="ctl-share" title="Share your screen">🖥️</button>
+    <button type="button" class="call-ctl hang" id="ctl-hang" title="Leave the call">📵</button>
+  </footer>
+  <div class="call-error" id="call-error" hidden></div>
+</div>
+<script src="{{ url_for('static', filename='js/call.js') }}"></script>
+{% endblock %}

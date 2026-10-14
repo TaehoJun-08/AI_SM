@@ -17,11 +17,12 @@
     {% endfor %}
   </div>
 
+  <div data-region="results" data-live="posts users engagement">
   {% if people %}
     <h6 class="section-title">People</h6>
     {% for p in people %}
       <div class="row-card">
-        {{ avatar(p.full_name, p.avatar, href=url_for('profiles.public', username=p.username)) }}
+        {{ avatar(p.full_name, p.avatar, href=url_for('profiles.public', username=p.username), uid=p.id) }}
         <a class="flex-grow-1 text-reset text-decoration-none" href="{{ url_for('profiles.public', username=p.username) }}">
           <b>{{ p.username }}</b><br><small class="muted">{{ p.full_name }}</small></a>
         {% if p.id != user['id'] %}
@@ -38,5 +39,6 @@
   {% else %}
     <p class="muted">No projects found.</p>
   {% endif %}
+  </div>
 </div>
 {% endblock %}

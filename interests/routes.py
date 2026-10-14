@@ -1,6 +1,7 @@
 from flask import Blueprint, redirect, url_for, flash, session, abort, request
 from db import get_db
 from helpers import login_required
+import live
 
 interests_bp = Blueprint("interests", __name__, url_prefix="/interests")
 
@@ -36,6 +37,10 @@ def offer(post_id):
             """INSERT OR IGNORE INTO interests (sponsor_id, project_id, amount, message)
                VALUES (?, ?, ?, ?)""", (me, post_id, int(amount), message))
         db.commit()
+        live.offer_changed(post_id, me, post["innovator_id"])
+        if result.rowcount or reopened:
+            live.notify([post["innovator_id"]], "activity", "💸 New sponsorship offer",
+                        f"@{live.username(db, me)} offered ₹{int(amount):,}", "/activity", key="activity")
         flash("Offer sent! 💌 You'll hear back in your activity." if result.rowcount or reopened
               else "You've already made an offer on this project.")
     return go_back(url_for("feed.post", post_id=post_id))
@@ -72,10 +77,15 @@ def edit(interest_id):
         thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
         if thread:
             verb = "increased" if amount > (offer["amount"] or 0) else "reduced"
-            db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
-                       (thread["id"], me, f"✏️ I {verb} my sponsorship for “{offer['title']}”: "
-                                          f"₹{offer['amount']:,} → ₹{amount:,}."))
+            note = db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+                              (thread["id"], me, f"✏️ I {verb} my sponsorship for “{offer['title']}”: "
+                                                 f"₹{offer['amount']:,} → ₹{amount:,}.")).lastrowid
     db.commit()
+    if offer["status"] == "accepted" and amount != offer["amount"] and thread:
+        live.dm_note(db, thread["id"], note)
+    live.offer_changed(offer["project_id"], me, offer["innovator_id"])
+    live.notify([offer["innovator_id"]], "activity", "✏️ Offer changed",
+                f"@{live.username(db, me)} changed their offer for {offer['title']}", "/activity", key="activity")
     flash("Your offer was updated. ✏️")
     return go_back(url_for("feed.activity"))
 
@@ -101,11 +111,16 @@ def withdraw(interest_id):
         a, b = min(me, offer["innovator_id"]), max(me, offer["innovator_id"])
         thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()
         if thread:
-            db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
-                       (thread["id"], me, f"↩️ I've withdrawn my sponsorship of ₹{offer['amount']:,} "
-                                          f"for “{offer['title']}”. Sorry for the change of plans."))
+            note = db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+                              (thread["id"], me, f"↩️ I've withdrawn my sponsorship of ₹{offer['amount']:,} "
+                                                 f"for “{offer['title']}”. Sorry for the change of plans.")).lastrowid
         flash("Your sponsorship was withdrawn and the owner was told.")
     db.commit()
+    if offer["status"] == "accepted" and thread:
+        live.dm_note(db, thread["id"], note)
+    live.offer_changed(offer["project_id"], me, offer["innovator_id"])
+    live.notify([offer["innovator_id"]], "activity", "↩️ Offer withdrawn",
+                f"@{live.username(db, me)} withdrew their offer for {offer['title']}", "/activity", key="activity")
     return go_back(url_for("feed.activity"))
 
 
@@ -125,12 +140,17 @@ def respond(interest_id, action):
     if offer is None:
         abort(404)
     if action == "decline":
-        db.execute("UPDATE interests SET status = 'declined' WHERE id = ?", (interest_id,))
+        db.execute("UPDATE interests SET status = 'declined', responded_at = datetime('now','localtime') WHERE id = ?",
+                   (interest_id,))
         db.commit()
+        live.offer_changed(offer["project_id"], me, offer["sponsor_id"])
+        live.notify([offer["sponsor_id"]], "activity", "Offer declined",
+                    f"Your offer for {offer['title']} was declined", "/activity", key="activity")
         flash("Offer declined.")
         return redirect(url_for("feed.activity"))
 
-    db.execute("UPDATE interests SET status = 'accepted' WHERE id = ?", (interest_id,))
+    db.execute("UPDATE interests SET status = 'accepted', responded_at = datetime('now','localtime') WHERE id = ?",
+               (interest_id,))
     a, b = min(me, offer["sponsor_id"]), max(me, offer["sponsor_id"])
     db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by, status) "
                "VALUES (?, ?, ?, 'accepted')", (a, b, offer["sponsor_id"]))
@@ -139,8 +159,13 @@ def respond(interest_id, action):
     note = f"💸 Sponsorship accepted for “{offer['title']}”: ₹{offer['amount']:,}."
     if offer["message"]:
         note += f" “{offer['message']}”"
-    db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
-               (thread["id"], offer["sponsor_id"], note[:2000]))
+    note_id = db.execute("INSERT INTO dm_messages (thread_id, sender_id, body) VALUES (?, ?, ?)",
+                         (thread["id"], offer["sponsor_id"], note[:2000])).lastrowid
     db.commit()
+    live.dm_note(db, thread["id"], note_id, notify=False)   # the owner just did this, only the sponsor hears about it
+    live.inbox_changed(thread["id"], reload=True)
+    live.offer_changed(offer["project_id"], me, offer["sponsor_id"])
+    live.notify([offer["sponsor_id"]], "activity", "🎉 Offer accepted",
+                f"@{live.username(db, me)} accepted your offer for {offer['title']}", f"/messages/{thread['id']}", key="activity")
     flash("You're connected! 🎉 Say hello.")
     return redirect(url_for("dms.thread", thread_id=thread["id"]))

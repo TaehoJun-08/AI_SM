@@ -1,3 +1,4 @@
+import live
 import re
 from flask import (Blueprint, render_template, request,
                    redirect, url_for, session, flash)
@@ -38,6 +39,7 @@ def register():
         (full_name, username, email, generate_password_hash(password)),
     )
     db.commit()
+    live.touch(["users"])
     flash("Account created. Please log in.")
     return redirect(url_for("auth.login"))
 
