@@ -2,10 +2,12 @@
    avatar(name, image_path)                       the normal size
    avatar(name, image_path, 'sm')                 'xs', 'sm' or 'xl'
    avatar(name, image_path, href=some_url)        wraps it in a link
-   avatar(name, image_path, kind='avatar-sm', style='background: red')   small chat avatar #}
-{% macro avatar(name, img, size='', href=None, kind='avatar-x', style='') -%}
+   avatar(name, image_path, kind='avatar-sm', style='background: red')   small chat avatar
+   avatar(name, image_path, uid=user_id)          adds the green/amber/red/grey online dot #}
+{% macro avatar(name, img, size='', href=None, kind='avatar-x', style='', uid=None) -%}
 {%- set cls = kind ~ (' ' ~ size if size else '') -%}
 {%- if href %}<a class="{{ cls }}" href="{{ href }}"{% if style and not img %} style="{{ style }}"{% endif %}>{% else %}<span class="{{ cls }}"{% if style and not img %} style="{{ style }}"{% endif %}>{% endif -%}
 {%- if img %}<img src="{{ url_for('static', filename=img) }}" alt="">{% else %}{{ name[0]|upper }}{% endif -%}
+{%- if uid %}<i class="pdot s-{{ presence(uid) }}" data-presence="{{ uid }}"></i>{% endif -%}
 {%- if href %}</a>{% else %}</span>{% endif -%}
 {%- endmacro %}

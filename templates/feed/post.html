@@ -6,7 +6,7 @@
 {% set mine = post.innovator_id == user['id'] %}
 {% set pct = [100, (post.raised * 100 // post.funding_needed)]|min %}
 <div class="post-page">
-  <div class="post post-detail" data-id="{{ post.id }}">
+  <div class="post post-detail" data-id="{{ post.id }}" data-author="{{ post.innovator_id }}">
     {% with square=true %}{% include "feed/_media.html" %}{% endwith %}
 
     <div class="detail-side">
@@ -29,12 +29,14 @@
       </header>
 
       <div class="detail-scroll">
-        <h4 class="mb-1">{{ post.title }}</h4>
-        <div class="mb-2">
-          <span class="tag">{{ post.domain }}</span> <span class="tag">{{ post.stage|capitalize }}</span>
+        <div class="detail-info">
+          <h4 class="mb-1">{{ post.title }}</h4>
+          <div class="mb-2">
+            <span class="tag">{{ post.domain }}</span> <span class="tag">{{ post.stage|capitalize }}</span>
+          </div>
+          <p class="muted mb-2">{{ post.summary }}</p>
+          <p class="detail-desc">{{ post.description }}</p>
         </div>
-        <p class="muted mb-2">{{ post.summary }}</p>
-        <p class="detail-desc">{{ post.description }}</p>
         <div class="fund">
           <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
           <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
@@ -42,10 +44,10 @@
         <hr>
         <div class="comment-list latest-comments">
           {% for c in comments %}
-            <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=c.username) }}">{{ c.username }}</a>
+            <p class="caption" data-cid="{{ c.id }}"><a class="post-user" data-uid="{{ c.user_id }}" href="{{ url_for('profiles.public', username=c.username) }}">{{ c.username }}</a>
               {{ c.body }}</p>
           {% else %}
-            <p class="muted">No comments yet. Start the conversation.</p>
+            <p class="muted no-comments">No comments yet. Start the conversation.</p>
           {% endfor %}
         </div>
       </div>

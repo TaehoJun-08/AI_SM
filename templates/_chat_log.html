@@ -18,7 +18,7 @@
 <div class="chat-log {{ log_class|default('') }}" id="chat-log" data-me="{{ user['id'] }}" data-room="{{ room_id }}"
      data-key="{{ room_key }}" data-join="{{ join_event }}" data-send="{{ send_event }}"
      data-attach="{{ attach_url|default('') }}" data-delete="{{ delete_event|default('') }}" data-edit="{{ edit_event|default('') }}"
-     data-manage="{{ 1 if can_manage else 0 }}">
+     data-manage="{{ 1 if can_manage else 0 }}" data-seen-upto="{{ seen_upto|default(0) }}">
   {% for m in messages %}
     {% set prev = loop.previtem %}
     {% set grouped = prev and prev['sender_id'] == m['sender_id'] %}
@@ -42,3 +42,4 @@
     </div>
   {% endfor %}
 </div>
+<div class="typing-note" id="typing" hidden></div>

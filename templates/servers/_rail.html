@@ -1,5 +1,5 @@
 {% from "_icons.html" import icon %}
-<nav class="srv-rail">
+<nav class="srv-rail" data-region="rail" data-live="servers">
   <a class="rail-btn home" href="{{ url_for('feed.index') }}" title="Back to the feed">✨</a>
   <div class="rail-sep"></div>
   {% for s in rail %}
@@ -7,6 +7,8 @@
        href="{{ url_for('servers.view', server_id=s['id']) }}" title="{{ s['name'] }}"
        style="--c: {{ s['color'] }}">
       {{ s['icon'] or s['name'][:2]|upper }}
+      {% set n = badges.servers.get(s['id'], 0) %}
+      <i class="sn-badge" data-badge-server="{{ s['id'] }}" {% if not n %}hidden{% endif %}>{{ n if n < 100 else '99+' }}</i>
     </a>
   {% endfor %}
   <a class="rail-btn add" href="{{ url_for('servers.home') }}#create" title="Add a server">+</a>

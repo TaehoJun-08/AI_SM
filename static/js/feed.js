@@ -113,13 +113,7 @@ document.addEventListener("submit", async (event) => {
   if (!res.ok) return;
   const data = await res.json();
   input.value = "";
-  const line = document.createElement("p");
-  line.className = "caption";
-  line.innerHTML = "<b></b> <span></span>";
-  line.querySelector("b").textContent = data.username;
-  line.querySelector("span").textContent = data.body;
-  const list = post.querySelector(".latest-comments") || post.querySelector(".comment-list");
-  if (list) list.appendChild(line);
+  window.liveAddComment(post, data);   // live.js draws it (and ignores the copy the server pushes back)
 });
 
 // Videos play only while they are on screen.

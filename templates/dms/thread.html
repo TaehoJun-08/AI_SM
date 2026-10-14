@@ -5,19 +5,25 @@
 <div class="dm-shell has-thread">
   {% include "dms/_sidebar.html" %}
   <section class="dm-main">
-    <header class="dm-head">
+    <header class="dm-head" data-region="dmhead" data-live="users">
       <a class="dm-back" href="{{ url_for('dms.inbox') }}">‹</a>
-      {{ avatar(other['full_name'], other['avatar'], href=url_for('profiles.public', username=other['username'])) }}
+      {{ avatar(other['full_name'], other['avatar'], href=url_for('profiles.public', username=other['username']), uid=other['id']) }}
       <div class="lh-sm">
         <a class="post-user" href="{{ url_for('profiles.public', username=other['username']) }}">{{ other['username'] }}</a><br>
         <small class="muted">{{ other['full_name'] }}</small>
       </div>
+      {% if thread['status'] == 'accepted' %}
+        <button type="button" class="icon-btn ms-auto call-btn" data-call="dm-{{ thread['id'] }}" data-ring="1" data-video="0" title="Voice call">📞</button>
+        <button type="button" class="icon-btn call-btn" data-call="dm-{{ thread['id'] }}" data-ring="1" data-video="1" title="Video call">📹</button>
+      {% endif %}
+      <button type="button" class="icon-btn {{ '' if thread['status'] == 'accepted' else 'ms-auto ' }}mute-btn" data-mute="dm" data-id="{{ thread['id'] }}"
+              data-on="{{ 1 if muted('dm', thread['id']) else 0 }}" title="Mute or unmute this chat"></button>
     </header>
 
     {% with room_id=thread['id'], room_key='thread_id', join_event='dm_join',
             send_event='dm_send', log_class='dm-log', empty_icon='👋',
             attach_url=url_for('dms.attach', thread_id=thread['id']), delete_event='dm_delete', edit_event='dm_edit',
-            empty_title='Your chat with ' ~ other['username'] %}
+            empty_title='Your chat with ' ~ other['username'], seen_upto=seen_upto %}
       {% include "_chat_log.html" %}
     {% endwith %}
 
@@ -48,6 +54,5 @@
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

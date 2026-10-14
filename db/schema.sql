@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     autoplay      INTEGER NOT NULL DEFAULT 1,
     dm_policy     TEXT    NOT NULL DEFAULT 'everyone',
     accepts_offers INTEGER NOT NULL DEFAULT 1,
+    activity_seen TEXT,
+    status        TEXT    NOT NULL DEFAULT 'online',
     created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS interests (
     amount      INTEGER,
     message     TEXT    NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    responded_at TEXT,
     UNIQUE (sponsor_id, project_id)
 );
 
@@ -226,3 +229,26 @@ CREATE TABLE IF NOT EXISTS post_media (
 );
 
 CREATE INDEX IF NOT EXISTS idx_post_media_post ON post_media (post_id, position);
+
+-- Notifications: how far each person has read in each chat and channel.
+CREATE TABLE IF NOT EXISTS dm_reads (
+    thread_id INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_id   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (thread_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS channel_reads (
+    channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_id    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (channel_id, user_id)
+);
+
+-- Muted chats (kind 'dm' = thread id), channels and servers: no pop-ups, no badges.
+CREATE TABLE IF NOT EXISTS mutes (
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind      TEXT    NOT NULL CHECK (kind IN ('dm', 'channel', 'server')),
+    target_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, kind, target_id)
+);

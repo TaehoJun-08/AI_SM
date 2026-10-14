@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_db
 from helpers import login_required, current_user
 from media import save_avatar, delete_media
+import live
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
@@ -53,6 +54,7 @@ def save_profile():
         db.execute("UPDATE users SET full_name = ?, username = ?, bio = ? WHERE id = ?",
                    (full_name, username, bio, me["id"]))
         db.commit()
+        live.user_changed(me["id"])
         flash("Profile updated. ✨")
     return back("profile")
 
@@ -66,6 +68,7 @@ def save_photo():
         db.execute("UPDATE users SET avatar = NULL WHERE id = ?", (me["id"],))
         db.commit()
         delete_media(me["avatar"])
+        live.user_changed(me["id"])
         flash("Profile photo removed.")
         return back("profile")
     file = request.files.get("photo")
@@ -80,6 +83,7 @@ def save_photo():
     db.execute("UPDATE users SET avatar = ? WHERE id = ?", (path, me["id"]))
     db.commit()
     delete_media(me["avatar"])
+    live.user_changed(me["id"])
     flash("Looking good! Profile photo updated. 📸")
     return back("profile")
 
@@ -105,6 +109,7 @@ def save_appearance():
     db.execute("UPDATE users SET theme = ?, accent = ?, calm = ?, autoplay = ? WHERE id = ?",
                (theme, accent, calm, autoplay, me["id"]))
     db.commit()
+    live.to_users([me["id"]], "prefs", {"theme": theme, "accent": accent, "calm": calm, "autoplay": autoplay})
     if request.headers.get("X-Requested-With") == "fetch":
         return jsonify(ok=True)
     flash("Appearance saved. ✨")
@@ -123,6 +128,9 @@ def save_privacy():
     db.execute("UPDATE users SET dm_policy = ?, accepts_offers = ? WHERE id = ?",
                (policy, 1 if request.form.get("accepts_offers") else 0, session["user_id"]))
     db.commit()
+    for post in db.execute("SELECT id FROM projects WHERE innovator_id = ?", (session["user_id"],)):
+        live.to_feed("post_changed", {"id": post["id"]})        # "Offers paused" appears or disappears
+    live.touch(["users"])
     flash("Privacy settings saved. 🔒")
     return back("privacy")
 
@@ -180,8 +188,12 @@ def delete_account():
         """SELECT m.path FROM post_media m JOIN projects p ON p.id = m.post_id
            WHERE p.innovator_id = ?""", (me["id"],))]
     paths.append(me["avatar"])
+    post_ids = [r["id"] for r in db.execute("SELECT id FROM projects WHERE innovator_id = ?", (me["id"],))]
     db.execute("DELETE FROM users WHERE id = ?", (me["id"],))
     db.commit()
+    for post_id in post_ids:
+        live.to_feed("post_deleted", {"id": post_id})
+    live.touch(["users", "posts"])
     for path in paths:
         delete_media(path)
     session.clear()

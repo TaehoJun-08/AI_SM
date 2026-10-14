@@ -1,0 +1,40 @@
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% macro thread_link(t) %}
+  <a class="dm-row {{ 'active' if thread and thread['id'] == t['id'] }}"
+     href="{{ url_for('dms.thread', thread_id=t['id']) }}">
+    {{ avatar(t['other_name'], t['other_avatar'], uid=t['other_id']) }}
+    <span class="dm-row-text">
+      <b>{{ t['other_username'] }}</b>
+      <small class="muted">{{ t['last_body'] or 'No messages yet' }}</small>
+    </span>
+    {% if t['unread'] and not (thread and thread['id'] == t['id']) %}<i class="dm-count">{{ t['unread'] if t['unread'] < 100 else '99+' }}</i>{% endif %}
+  </a>
+{% endmacro %}
+{% if people %}
+  <div class="side-title">People</div>
+  {% for p in people %}
+    <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="dm-row">
+      {{ avatar(p['full_name'], p['avatar'], href=url_for('profiles.public', username=p['username']), uid=p['id']) }}
+      <span class="dm-row-text">
+        <b>{{ p['username'] }}</b><small class="muted">{{ p['full_name'] }}</small>
+      </span>
+      <button class="link-btn ms-auto">Message</button>
+    </form>
+  {% endfor %}
+{% elif q %}
+  <p class="small muted px-3 mt-3">Nobody found for "{{ q }}".</p>
+{% endif %}
+
+{% if requests %}
+  <div class="side-title">Requests · {{ requests|length }}</div>
+  {% for t in requests %}{{ thread_link(t) }}{% endfor %}
+{% endif %}
+
+<div class="side-title">Messages</div>
+{% for t in chats %}
+  {{ thread_link(t) }}
+{% else %}
+  <p class="small muted px-3">No chats yet. Search for someone above.</p>
+{% endfor %}
+

@@ -15,6 +15,8 @@
       </button>
       <ul class="dropdown-menu srv-menu">
         <li><button class="dropdown-item" data-invite="{{ server['invite_code'] }}">Invite People</button></li>
+        <li><button class="dropdown-item" data-mute="server" data-id="{{ server['id'] }}" data-on="{{ 1 if muted('server', server['id']) else 0 }}"
+                    data-on-text="🔕 Unmute server" data-off-text="🔔 Mute server">{{ '🔕 Unmute server' if muted('server', server['id']) else '🔔 Mute server' }}</button></li>
         {% if m.is_manager %}
           <li><a class="dropdown-item" href="{{ url_for('servers.settings', server_id=server['id']) }}">Server Settings</a></li>
           <li><a class="dropdown-item" href="{{ url_for('servers.settings', server_id=server['id'], tab='channels') }}">Create Channel</a></li>
@@ -43,6 +45,8 @@
              href="{{ url_for('servers.view', server_id=server['id'], channel_id=c['id']) }}">
             {{ icon('lock' if c['is_private'] else ('megaphone' if c['kind'] == 'announcement' else 'hash'), 16) }}
             <span>{{ c['name'] }}</span>
+            {% set n = badges.channels.get(c['id'], 0) %}
+            <i class="ch-count" data-badge-channel="{{ c['id'] }}" {% if not n %}hidden{% endif %}>{{ n if n < 100 else '99+' }}</i>
             {% if m.is_manager %}
               <i class="ch-gear" onclick="event.preventDefault(); location.href='{{ url_for('servers.settings', server_id=server['id'], tab='channels') }}'">{{ icon('settings', 14) }}</i>
             {% endif %}
@@ -64,10 +68,18 @@
         {{ icon('megaphone' if current['kind'] == 'announcement' else 'hash', 22) }}
         <b>{{ current['name'] }}</b>
         {% if current['topic'] %}<span class="srv-divider"></span><span class="srv-muted">{{ current['topic'] }}</span>{% endif %}
-        <button class="srv-icon-btn ms-auto d-none d-xl-inline-flex" onclick="document.querySelector('.srv-members').classList.toggle('hidden')"
+        <button class="srv-icon-btn ms-auto call-btn" data-call="ch-{{ current['id'] }}" data-video="0" title="Start or join a voice call">📞</button>
+        <button class="srv-icon-btn call-btn" data-call="ch-{{ current['id'] }}" data-video="1" title="Start or join a video call">📹</button>
+        <button class="srv-icon-btn mute-btn" data-mute="channel" data-id="{{ current['id'] }}"
+                data-on="{{ 1 if muted('channel', current['id']) else 0 }}" title="Mute or unmute this channel"></button>
+        <button class="srv-icon-btn d-none d-xl-inline-flex" onclick="document.querySelector('.srv-members').classList.toggle('hidden')"
                 title="Member list">{{ icon('users', 22) }}</button>
       </header>
 
+      <div class="call-banner" data-call-banner="ch-{{ current['id'] }}" {% if not call_count('ch-' ~ current['id']) %}hidden{% endif %}>
+        <span>📞 <b data-call-count>{{ call_count('ch-' ~ current['id']) }}</b> in a call in this channel</span>
+        <button type="button" class="srv-btn small" data-call="ch-{{ current['id'] }}" data-video="0">Join</button>
+      </div>
       {% with room_id=current['id'], room_key='channel_id', join_event='srv_join',
               send_event='srv_send', log_class='srv-log', empty_icon='#',
               attach_url=url_for('servers.attach', channel_id=current['id']), delete_event='srv_delete', edit_event='srv_edit',
@@ -102,7 +114,7 @@
       <div class="mem-title">{{ label|upper }} — {{ people|length }}</div>
       {% for p in people %}
         <a class="mem" href="{{ url_for('profiles.public', username=p['username']) }}">
-          {{ avatar(p['username'], p['avatar'], kind='avatar-sm', style='background: ' ~ (p['color'] or '#7c3aed')) }}
+          {{ avatar(p['username'], p['avatar'], kind='avatar-sm', style='background: ' ~ (p['color'] or '#7c3aed'), uid=p['id']) }}
           <span style="{% if p['color'] %}color: {{ p['color'] }}{% endif %}">{{ p['username'] }}</span>
         </a>
       {% endfor %}
@@ -118,7 +130,6 @@
   });
 </script>
 {% if current %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endif %}
 {% endblock %}

@@ -2,6 +2,8 @@ from flask import (Blueprint, render_template, request, jsonify,
                    session, abort)
 from db import get_db
 from helpers import login_required
+import live
+import unread
 
 feed_bp = Blueprint("feed", __name__)
 
@@ -37,18 +39,12 @@ def attach_media(posts):
         p["media"] = by_post[p["id"]]
 
 
-def load_posts(where="", params=None, order="p.id DESC", limit=PAGE_SIZE, with_comments=True):
-    """Posts as dicts, each with its latest two comments attached."""
+def load_posts(where="", params=None, order="p.id DESC", limit=PAGE_SIZE):
+    """Posts as dicts, each with its photos and videos attached."""
     params = dict(params or {}, me=session["user_id"])
-    db = get_db()
-    rows = db.execute(f"{POST_SELECT} {where} ORDER BY {order} LIMIT {int(limit)}", params).fetchall()
+    rows = get_db().execute(f"{POST_SELECT} {where} ORDER BY {order} LIMIT {int(limit)}", params).fetchall()
     posts = [dict(r) for r in rows]
     attach_media(posts)
-    if with_comments:
-        for p in posts:
-            p["latest_comments"] = list(reversed(db.execute(
-                """SELECT c.body, u.username FROM comments c JOIN users u ON u.id = c.user_id
-                   WHERE c.post_id = ? ORDER BY c.id DESC LIMIT 2""", (p["id"],)).fetchall()))
     return posts
 
 
@@ -63,8 +59,11 @@ def index():
            JOIN users u ON u.id = p.innovator_id GROUP BY u.id
            ORDER BY last_post DESC LIMIT 12""").fetchall()
     suggested = db.execute(
-        """SELECT id, username, full_name, avatar FROM users WHERE id != ?
-           ORDER BY id DESC LIMIT 5""", (session["user_id"],)).fetchall()
+        """SELECT id, username, full_name, avatar FROM users
+           WHERE id != :me
+             AND id NOT IN (SELECT CASE WHEN user_a = :me THEN user_b ELSE user_a END FROM dm_threads
+                            WHERE :me IN (user_a, user_b) AND status IN ('accepted', 'pending'))
+           ORDER BY id DESC LIMIT 5""", {"me": session["user_id"]}).fetchall()
     return render_template("feed/index.html", posts=posts, authors=authors, suggested=suggested)
 
 
@@ -79,14 +78,33 @@ def more():
     return "".join(render_template("feed/_post.html", post=p) for p in posts)
 
 
+@feed_bp.route("/feed/new")
+@login_required
+def new_posts():
+    """Posts newer than the one at the top of the page, as HTML (pushed by a live event)."""
+    after = request.args.get("after", 0, type=int)
+    posts = load_posts("WHERE p.id > :after", {"after": after}, limit=20)
+    return "".join(render_template("feed/_post.html", post=p) for p in posts)
+
+
+@feed_bp.route("/p/<int:post_id>/card")
+@login_required
+def card(post_id):
+    """One post card, so a page can refresh its funding bar and buttons live."""
+    posts = load_posts("WHERE p.id = :pid", {"pid": post_id})
+    if not posts:
+        abort(404)
+    return render_template("feed/_post.html", post=posts[0])
+
+
 @feed_bp.route("/p/<int:post_id>")
 @login_required
 def post(post_id):
-    posts = load_posts("WHERE p.id = :pid", {"pid": post_id}, with_comments=False)
+    posts = load_posts("WHERE p.id = :pid", {"pid": post_id})
     if not posts:
         abort(404)
     comments = get_db().execute(
-        """SELECT c.id, c.body, c.created_at, u.username FROM comments c
+        """SELECT c.id, c.user_id, c.body, c.created_at, u.username FROM comments c
            JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.id""",
         (post_id,)).fetchall()
     return render_template("feed/post.html", post=posts[0], comments=comments)
@@ -104,6 +122,14 @@ def like(post_id):
         db.execute("INSERT INTO likes (post_id, user_id) VALUES (?, ?)", (post_id, me))
     db.commit()
     count = db.execute("SELECT COUNT(*) FROM likes WHERE post_id = ?", (post_id,)).fetchone()[0]
+    live.to_feed("post_likes", {"id": post_id, "count": count})
+    live.to_users([me], "post_liked", {"id": post_id, "liked": removed.rowcount == 0})
+    live.touch(["engagement"])
+    post = db.execute("SELECT innovator_id, title FROM projects WHERE id = ?", (post_id,)).fetchone()
+    live.to_users([post["innovator_id"]], "activity")
+    if removed.rowcount == 0 and post["innovator_id"] != me:
+        live.notify([post["innovator_id"]], "activity", "❤️ New like",
+                    f"@{live.username(db, me)} liked {post['title']}", f"/p/{post_id}", key="activity")
     return jsonify(liked=removed.rowcount == 0, count=count)
 
 
@@ -116,12 +142,20 @@ def comment(post_id):
         abort(404)
     if not 1 <= len(body) <= 500:
         return jsonify(error="Comments are 1-500 characters."), 400
-    db.execute("INSERT INTO comments (post_id, user_id, body) VALUES (?, ?, ?)",
-               (post_id, session["user_id"], body))
+    cid = db.execute("INSERT INTO comments (post_id, user_id, body) VALUES (?, ?, ?)",
+                     (post_id, session["user_id"], body)).lastrowid
     db.commit()
     count = db.execute("SELECT COUNT(*) FROM comments WHERE post_id = ?", (post_id,)).fetchone()[0]
     username = db.execute("SELECT username FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0]
-    return jsonify(username=username, body=body, count=count)
+    data = {"id": post_id, "cid": cid, "uid": session["user_id"], "username": username, "body": body, "count": count}
+    live.to_feed("post_comment", data)
+    live.touch(["engagement"])
+    post = db.execute("SELECT innovator_id, title FROM projects WHERE id = ?", (post_id,)).fetchone()
+    live.to_users([post["innovator_id"]], "activity")
+    if post["innovator_id"] != session["user_id"]:
+        live.notify([post["innovator_id"]], "activity", f"💬 New comment on {post['title']}",
+                    f"@{username}: {body}", f"/p/{post_id}", key="activity")
+    return jsonify(data)
 
 
 @feed_bp.route("/activity")
@@ -129,6 +163,7 @@ def comment(post_id):
 def activity():
     me = session["user_id"]
     db = get_db()
+    unread.mark_activity(me)
     incoming = db.execute(
         """SELECT i.*, p.title, u.username, u.full_name, u.avatar, u.email
            FROM interests i JOIN projects p ON p.id = i.project_id
@@ -174,7 +209,7 @@ def search():
         where.append("p.domain = :domain")
         params["domain"] = domain
     clause = "WHERE " + " AND ".join(where) if where else ""
-    posts = load_posts(clause, params, limit=60, with_comments=False)
+    posts = load_posts(clause, params, limit=60)
     for p in posts:
         first = p["media"][0] if p["media"] else None
         p["media_path"], p["media_type"] = (first["path"], first["type"]) if first else (None, None)

@@ -2,7 +2,7 @@
 {% from "_avatar.html" import avatar %}
 {% set mine = post.innovator_id == user['id'] %}
 {% set pct = [100, (post.raised * 100 // post.funding_needed)]|min %}
-<article class="post" data-id="{{ post.id }}">
+<article class="post" data-id="{{ post.id }}" data-author="{{ post.innovator_id }}">
   <header class="post-head">
     <a class="story-ring sm" href="{{ url_for('profiles.public', username=post.username) }}">
       {{ avatar(post.full_name, post.avatar, 'sm') }}</a>
@@ -59,17 +59,5 @@
     </div>
     <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
       <b>{{ post.title }}</b> — {{ post.summary }}</p>
-    {% if post.comment_count > 2 %}
-      <a class="muted-link" href="{{ url_for('feed.post', post_id=post.id) }}">View all {{ post.comment_count }} comments</a>
-    {% endif %}
-    <div class="latest-comments">
-      {% for c in post.latest_comments %}
-        <p class="caption"><b>{{ c.username }}</b> {{ c.body }}</p>
-      {% endfor %}
-    </div>
-    <form class="comment-form" data-comment>
-      <input name="body" maxlength="500" placeholder="Add a comment…" autocomplete="off">
-      <button>Post</button>
-    </form>
   </div>
 </article>

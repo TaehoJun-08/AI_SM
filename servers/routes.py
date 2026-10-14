@@ -1,13 +1,35 @@
 import re
 import secrets
-from flask import (Blueprint, render_template, request,
+from flask import (Blueprint, render_template, request, g,
                    redirect, url_for, flash, session, abort, jsonify)
 from db import get_db
 from helpers import login_required
 from extensions import socketio
 from chatmedia import collect
+import live
+import unread
 
 servers_bp = Blueprint("servers", __name__, url_prefix="/servers")
+
+@servers_bp.before_request
+def remember_members():
+    """Note who is in the server before a change, so people who get removed hear about it too."""
+    server_id = (request.view_args or {}).get("server_id")
+    if request.method == "POST" and server_id:
+        g.live_before = [r["user_id"] for r in get_db().execute(
+            "SELECT user_id FROM server_members WHERE server_id = ?", (server_id,))]
+
+
+@servers_bp.after_request
+def announce_changes(response):
+    """Any successful change to a server (channels, roles, members, name...) redraws its open pages."""
+    server_id = (request.view_args or {}).get("server_id") or g.get("live_server")
+    if request.method == "POST" and response.status_code < 400:
+        live.touch(["servers"])
+        if server_id:
+            live.server_changed(server_id, g.get("live_before", ()))
+    return response
+
 
 COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 CHANNEL_NAME = re.compile(r"[a-z0-9_-]{1,30}")
@@ -146,6 +168,8 @@ def view(server_id, channel_id=None):
         abort(404)
     db = get_db()
     server = m["server"]
+    if channel_id is not None:
+        unread.mark_channel(channel_id, me)
     categories = db.execute("SELECT * FROM server_categories WHERE server_id = ? ORDER BY position, id",
                             (server_id,)).fetchall()
     channels = [c for c in db.execute(
@@ -160,6 +184,7 @@ def view(server_id, channel_id=None):
         abort(404)
     if current is None and channels:
         current = next(c for g in groups for c in g["channels"])
+        unread.mark_channel(current["id"], me)
     messages = []
     if current:
         messages = db.execute(
@@ -226,9 +251,15 @@ def join_public(server_id):
 
 def join_server(server_id):
     db = get_db()
-    db.execute("INSERT OR IGNORE INTO server_members (server_id, user_id) VALUES (?, ?)",
-               (server_id, session["user_id"]))
+    joined = db.execute("INSERT OR IGNORE INTO server_members (server_id, user_id) VALUES (?, ?)",
+                        (server_id, session["user_id"])).rowcount
     db.commit()
+    if joined:
+        unread.mark_server_read_from_now(server_id, session["user_id"])
+        server = db.execute("SELECT owner_id, name FROM servers WHERE id = ?", (server_id,)).fetchone()
+        live.notify([server["owner_id"]], "server", "New member",
+                    f"@{live.username(db, session['user_id'])} joined {server['name']}", f"/servers/{server_id}")
+    g.live_server = server_id
     return redirect(url_for("servers.view", server_id=server_id))
 
 
@@ -554,6 +585,8 @@ def kick(server_id, user_id):
         db = get_db()
         db.execute("DELETE FROM server_members WHERE server_id = ? AND user_id = ?", (server_id, user_id))
         db.commit()
+        live.notify([user_id], "server", "Removed from a server",
+                    f"You were removed from {m['server']['name']}", "/servers/")
         flash("Member removed.")
     return back(server_id, "members")
 
@@ -581,4 +614,5 @@ def attach(channel_id):
         message = db.execute(f"{MSG_SELECT} WHERE m.id = :mid",
                              {"mid": cur.lastrowid, "sid": channel["server_id"]}).fetchone()
         socketio.emit("message", dict(message), to=f"srv-{channel_id}")
+        live.notify_channel(db, channel, me, live.preview("", kind))
     return jsonify(sent=len(items))

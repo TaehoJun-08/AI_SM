@@ -3,9 +3,9 @@
 {% from "_icons.html" import icon %}
 {% block title %}@{{ person['username'] }} · Sponsorship Matchmaker{% endblock %}
 {% block content %}
-<div class="profile-page">
+<div class="profile-page" data-region="profile" data-live="posts users engagement">
   <header class="profile-head">
-    <span class="story-ring xl">{{ avatar(person['full_name'], person['avatar'], 'xl') }}</span>
+    <span class="story-ring xl">{{ avatar(person['full_name'], person['avatar'], 'xl', uid=person['id']) }}</span>
     <div class="profile-info">
       <div class="profile-line">
         <h2>{{ person['username'] }}</h2>
