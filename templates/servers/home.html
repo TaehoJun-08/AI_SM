@@ -74,7 +74,40 @@
     {# ---- Explore ---- #}
     <dialog class="dc-modal wide" id="dlg-explore">
       <button type="button" class="dc-x" data-close aria-label="Close">✕</button>
-      <h3>Explore servers</h3>
+      <h3>Explore</h3>
+      <div class="dc-tabs"><button type="button" class="on" data-tab="servers">Servers</button>
+        <button type="button" data-tab="projects">💡 Projects · {{ projects|length }}</button></div>
+
+      <div id="tab-projects" hidden>
+        <p class="dc-sub">Every project has its own server with updates and a live funding status. You will be asked before joining.</p>
+        <div class="dc-filters">
+          <select id="f-stage"><option value="">Any stage</option><option value="idea">Idea</option><option value="prototype">Prototype</option><option value="mvp">MVP</option><option value="growth">Growth</option></select>
+          <select id="f-domain"><option value="">Any domain</option>{% for d in domains %}<option>{{ d }}</option>{% endfor %}</select>
+          <select id="f-fund"><option value="">Any funding</option><option value="needs">Still needs money</option><option value="funded">Fully funded</option></select>
+        </div>
+        <div class="dc-grid">
+          {% for s in projects %}
+            {% set pct = [100, (s['raised'] * 100 // s['funding_needed'])]|min %}
+            <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile proj-tile"
+                  data-stage="{{ s['stage'] }}" data-domain="{{ s['domain'] }}" data-fund="{{ 'funded' if pct >= 100 else 'needs' }}">
+              <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
+              <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">💡</span>
+              <span class="dc-stage">{{ s['stage'] }} · {{ s['domain'] }}</span>
+              <b>{{ s['title'] }}</b>
+              <p>{{ s['description'] or 'No summary yet.' }}</p>
+              <div class="dc-mini"><i style="width: {{ pct }}%"></i></div>
+              <div class="dc-tile-foot">
+                <small>₹{{ '{:,}'.format(s['raised']) }} of ₹{{ '{:,}'.format(s['funding_needed']) }} · {{ s['members'] }} 👥</small>
+                <button class="dc-btn small">View</button>
+              </div>
+            </form>
+          {% else %}
+            <p class="dc-sub">No project servers yet. Owners can create one from their post.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="tab-servers">
       <p class="dc-sub">Public servers you can hop into right now.</p>
       <div class="dc-grid">
         {% for s in explore %}
@@ -92,8 +125,27 @@
           <p class="dc-sub">Nothing to explore yet. Be the first to create a server!</p>
         {% endfor %}
       </div>
+      </div>
     </dialog>
 
+    <script>
+      // Explore: Servers / Projects tabs and the project filters
+      (() => {
+        const dlg = document.getElementById("dlg-explore");
+        const tabs = dlg.querySelectorAll("[data-tab]");
+        tabs.forEach((t) => t.addEventListener("click", () => {
+          tabs.forEach((x) => x.classList.toggle("on", x === t));
+          document.getElementById("tab-projects").hidden = t.dataset.tab !== "projects";
+          document.getElementById("tab-servers").hidden = t.dataset.tab !== "servers";
+        }));
+        const f = { stage: document.getElementById("f-stage"), domain: document.getElementById("f-domain"), fund: document.getElementById("f-fund") };
+        const apply = () => dlg.querySelectorAll(".proj-tile").forEach((tile) => {
+          tile.hidden = (f.stage.value && tile.dataset.stage !== f.stage.value) || (f.domain.value && tile.dataset.domain !== f.domain.value)
+            || (f.fund.value && tile.dataset.fund !== f.fund.value);
+        });
+        Object.values(f).forEach((s) => s.addEventListener("change", apply));
+      })();
+    </script>
     <script src="{{ url_for('static', filename='js/sky.js') }}"></script>
   </main>
 </div>

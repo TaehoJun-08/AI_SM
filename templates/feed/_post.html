@@ -59,5 +59,10 @@
     </div>
     <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
       <b>{{ post.title }}</b> — {{ post.summary }}</p>
+    {% set chip = project_chip(post.id) %}
+    {% if chip %}
+      <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}" class="px-3 pb-2">
+        <button class="proj-chip" title="Open the project server">💬 {{ chip.members }} member{{ '' if chip.members == 1 else 's' }}{% if chip.last %} · last update {{ chip.last }}{% endif %} · {{ chip.stage }}</button></form>
+    {% endif %}
   </div>
 </article>

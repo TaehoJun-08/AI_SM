@@ -6,17 +6,25 @@
 {% block main %}
 {% include "_flashes.html" %}
 {% set sid = server['id'] %}
+{% set P = m.perms %}
 {% macro color_input(value) %}<input type="color" name="color" value="{{ value }}" class="srv-color">{% endmacro %}
+{% macro powers(have, can_grant) %}
+  <div class="power-grid">
+    {% for key, label, hint in perm_list %}
+      <label class="power {{ 'locked' if key not in can_grant }}" title="{{ hint }}">
+        <input type="checkbox" name="perms" value="{{ key }}" {{ 'checked' if key in have }} {{ 'disabled' if key not in can_grant }}>
+        <span><b>{{ label }}</b><small>{{ hint }}</small></span>
+      </label>
+    {% endfor %}
+  </div>
+{% endmacro %}
 
 <div class="srv-settings">
   <aside class="set-nav">
     <div class="set-nav-inner">
       <div class="mem-title">{{ server['name']|upper }}</div>
       {% for t in tabs %}
-        {% if t != 'invite' or true %}
-          <a class="set-tab {{ 'active' if tab == t }}" href="{{ url_for('servers.settings', server_id=sid, tab=t) }}">
-            {{ {'overview': 'Overview', 'roles': 'Roles', 'channels': 'Channels', 'members': 'Members', 'invite': 'Invites'}[t] }}</a>
-        {% endif %}
+        <a class="set-tab {{ 'active' if tab == t }}" href="{{ url_for('servers.settings', server_id=sid, tab=t) }}">{{ tab_names[t] }}</a>
       {% endfor %}
     </div>
   </aside>
@@ -39,6 +47,12 @@
         <input name="description" value="{{ server['description'] }}" maxlength="200">
         <label class="srv-check"><input type="checkbox" name="is_public" {{ 'checked' if server['is_public'] }}>
           Show this server in Explore (public)</label>
+        <h5 class="mt-4">🎯 Community goal</h5>
+        <p class="srv-muted">Shows a progress bar in the channel list. It fills as sponsors' accepted offers on your members' posts add up.</p>
+        <div class="srv-row">
+          <div class="grow"><label>Goal title</label><input name="goal_title" value="{{ server['goal_title'] }}" maxlength="60" placeholder="Fund 5 student startups"></div>
+          <div><label>Target (₹)</label><input name="goal_amount" type="number" min="0" value="{{ server['goal_amount'] or '' }}" style="width: 150px"></div>
+        </div>
         <button class="srv-btn">Save changes</button>
       </form>
 
@@ -55,26 +69,49 @@
 
     {# ---------------- ROLES ---------------- #}
     {% elif tab == 'roles' %}
-      <h3>Roles</h3>
-      <p class="srv-muted">Roles give members a colour and, if you tick Administrator, the power to manage the server. They also unlock private channels.</p>
-      <form method="POST" action="{{ url_for('servers.add_role', server_id=sid) }}" class="set-form inline">
-        <input name="name" placeholder="New role name" maxlength="30" required>
-        {{ color_input('#e91e63') }}
-        <label class="srv-check m-0"><input type="checkbox" name="is_admin"> Administrator</label>
-        <button class="srv-btn">Create role</button>
-      </form>
+      <h3>Roles &amp; powers</h3>
+      <p class="srv-muted">A role gives a colour, a place in the member list and a set of powers. Higher roles outrank lower ones. Greyed powers are ones you don't hold yourself, so you can't hand them out.</p>
+
+      <details class="set-box">
+        <summary>🌍 Powers everyone has</summary>
+        <form method="POST" action="{{ url_for('servers.save_base_powers', server_id=sid) }}" class="set-form">
+          {{ powers(base_set, P) }}
+          <button class="srv-btn small">Save</button>
+        </form>
+      </details>
+
+      <div class="set-box">
+        <h5>Create a role</h5>
+        <form method="POST" action="{{ url_for('servers.add_role', server_id=sid) }}" class="set-form">
+          <div class="srv-row">
+            <div class="grow"><input name="name" placeholder="New role name" maxlength="30" required></div>
+            <div>{{ color_input('#e91e63') }}</div>
+            {% if m.is_manager %}<label class="srv-check m-0"><input type="checkbox" name="is_admin"> Administrator (every power)</label>{% endif %}
+          </div>
+          {{ powers([], P) }}
+          <button class="srv-btn">Create role</button>
+        </form>
+      </div>
+
       {% for r in roles %}
-        <div class="set-item">
-          <form method="POST" action="{{ url_for('servers.edit_role', server_id=sid, role_id=r['id']) }}" class="set-form inline">
-            <span class="role-dot" style="background: {{ r['color'] }}"></span>
-            <input name="name" value="{{ r['name'] }}" maxlength="30" required>
-            {{ color_input(r['color']) }}
-            <label class="srv-check m-0"><input type="checkbox" name="is_admin" {{ 'checked' if r['is_admin'] }}> Administrator</label>
-            <button class="srv-btn small">Save</button>
+        {% set editable = m.is_manager or r['position'] < m.top %}
+        <details class="set-box">
+          <summary><span class="role-dot" style="background: {{ r['color'] }}"></span> {{ r['name'] }}
+            {% if r['is_admin'] %}<span class="badge-owner">Administrator</span>{% endif %}</summary>
+          <form method="POST" action="{{ url_for('servers.edit_role', server_id=sid, role_id=r['id']) }}" class="set-form">
+            <div class="srv-row">
+              <div class="grow"><input name="name" value="{{ r['name'] }}" maxlength="30" required {{ 'disabled' if not editable }}></div>
+              <div>{{ color_input(r['color']) }}</div>
+              {% if m.is_manager %}<label class="srv-check m-0"><input type="checkbox" name="is_admin" {{ 'checked' if r['is_admin'] }}> Administrator</label>{% endif %}
+            </div>
+            {{ powers(role_masks[r['id']], P if editable else []) }}
+            {% if editable %}<button class="srv-btn small">Save</button>{% else %}<small class="srv-muted">This role is above yours.</small>{% endif %}
           </form>
+          {% if editable %}
           <form method="POST" action="{{ url_for('servers.delete_role', server_id=sid, role_id=r['id']) }}"
-                onsubmit="return confirm('Delete this role?')"><button class="srv-btn small danger">Delete</button></form>
-        </div>
+                onsubmit="return confirm('Delete this role?')" class="mt-2"><button class="srv-btn small danger">Delete role</button></form>
+          {% endif %}
+        </details>
       {% else %}
         <p class="srv-muted mt-3">No roles yet. Create one above, then give it to people in the Members tab.</p>
       {% endfor %}
@@ -82,27 +119,36 @@
     {# ---------------- CHANNELS ---------------- #}
     {% elif tab == 'channels' %}
       <h3>Channels</h3>
+      {% macro channel_form(ch) %}
+        <div class="srv-row">
+          <div class="grow"><label>Name</label><input name="name" value="{{ ch['name'] if ch }}" placeholder="new-channel" maxlength="30" required></div>
+          <div><label>Type</label>
+            <select name="kind">{% for k, label in kinds.items() %}<option value="{{ k }}" {{ 'selected' if ch and ch['kind'] == k }}>{{ label }}</option>{% endfor %}</select></div>
+          <div><label>Category</label>
+            <select name="category_id"><option value="">No category</option>
+              {% for c in categories %}<option value="{{ c['id'] }}" {{ 'selected' if ch and ch['category_id'] == c['id'] }}>{{ c['name'] }}</option>{% endfor %}</select></div>
+        </div>
+        <label>Topic</label><input name="topic" value="{{ ch['topic'] if ch }}" maxlength="120" placeholder="What's this channel for?">
+        <div class="srv-row">
+          <div><label>Slow mode (seconds between messages)</label>
+            <input name="slowmode" type="number" min="0" max="21600" value="{{ ch['slowmode'] if ch else 0 }}" style="width: 130px"></div>
+          <label class="srv-check"><input type="checkbox" name="read_only" {{ 'checked' if ch and ch['read_only'] }}> 🔇 Read-only (only people with Manage messages can post)</label>
+        </div>
+        <label class="srv-check"><input type="checkbox" name="is_private" {{ 'checked' if ch and ch['is_private'] }}> 🔒 Private channel (only admins and the roles ticked below can see it)</label>
+        {% if roles %}
+          <div class="srv-row wrap">
+            {% for r in roles %}
+              <label class="srv-check"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
+                {{ 'checked' if ch and r['id'] in channel_roles.get(ch['id'], []) }}>
+                <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endmacro %}
       <div class="set-box">
         <h5>Create a channel</h5>
         <form method="POST" action="{{ url_for('servers.add_channel', server_id=sid) }}" class="set-form">
-          <div class="srv-row">
-            <div class="grow"><label>Name</label><input name="name" placeholder="new-channel" maxlength="30" required></div>
-            <div><label>Type</label>
-              <select name="kind"><option value="text"># Text</option><option value="announcement">📢 Announcement (admins post)</option></select></div>
-            <div><label>Category</label>
-              <select name="category_id"><option value="">No category</option>
-                {% for c in categories %}<option value="{{ c['id'] }}">{{ c['name'] }}</option>{% endfor %}</select></div>
-          </div>
-          <label>Topic</label><input name="topic" maxlength="120" placeholder="What's this channel for?">
-          <label class="srv-check"><input type="checkbox" name="is_private"> 🔒 Private channel (only admins and the roles below can see it)</label>
-          {% if roles %}
-            <div class="srv-row wrap">
-              {% for r in roles %}
-                <label class="srv-check"><input type="checkbox" name="role_ids" value="{{ r['id'] }}">
-                  <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
-              {% endfor %}
-            </div>
-          {% endif %}
+          {{ channel_form(none) }}
           <button class="srv-btn">Create channel</button>
         </form>
       </div>
@@ -128,29 +174,9 @@
       <h5 class="mt-4">Edit channels</h5>
       {% for ch in channels %}
         <details class="set-box">
-          <summary>{{ icon('lock' if ch['is_private'] else ('megaphone' if ch['kind'] == 'announcement' else 'hash'), 16) }} {{ ch['name'] }}</summary>
+          <summary>{{ kinds[ch['kind']].split(' ')[0] }} {{ ch['name'] }}{% if ch['slowmode'] %} <small class="srv-muted">🐢 {{ ch['slowmode'] }}s</small>{% endif %}</summary>
           <form method="POST" action="{{ url_for('servers.edit_channel', server_id=sid, channel_id=ch['id']) }}" class="set-form">
-            <div class="srv-row">
-              <div class="grow"><label>Name</label><input name="name" value="{{ ch['name'] }}" maxlength="30" required></div>
-              <div><label>Type</label>
-                <select name="kind">
-                  <option value="text" {{ 'selected' if ch['kind'] == 'text' }}># Text</option>
-                  <option value="announcement" {{ 'selected' if ch['kind'] == 'announcement' }}>📢 Announcement</option></select></div>
-              <div><label>Category</label>
-                <select name="category_id"><option value="">No category</option>
-                  {% for c in categories %}<option value="{{ c['id'] }}" {{ 'selected' if ch['category_id'] == c['id'] }}>{{ c['name'] }}</option>{% endfor %}</select></div>
-            </div>
-            <label>Topic</label><input name="topic" value="{{ ch['topic'] }}" maxlength="120">
-            <label class="srv-check"><input type="checkbox" name="is_private" {{ 'checked' if ch['is_private'] }}> 🔒 Private channel</label>
-            {% if roles %}
-              <div class="srv-row wrap">
-                {% for r in roles %}
-                  <label class="srv-check"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
-                    {{ 'checked' if r['id'] in channel_roles.get(ch['id'], []) }}>
-                    <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
-                {% endfor %}
-              </div>
-            {% endif %}
+            {{ channel_form(ch) }}
             <div class="d-flex gap-2"><button class="srv-btn small">Save</button></div>
           </form>
           <form method="POST" action="{{ url_for('servers.delete_channel', server_id=sid, channel_id=ch['id']) }}"
@@ -163,33 +189,240 @@
     {% elif tab == 'members' %}
       <h3>Members <small class="srv-muted">— {{ members|length }}</small></h3>
       {% for p in members %}
+        {% set t = tops[p['id']] %}
+        {% set above = (not p['is_bot']) and p['id'] != user['id'] and (m.is_owner or (not t.is_owner and m.top > t.top)) %}
         <div class="set-item mem-item">
           {{ avatar(p['username'], p['avatar'], kind='avatar-sm') }}
-          <div class="lh-sm" style="min-width: 140px"><b>{{ p['username'] }}</b>
-            {% if p['id'] == server['owner_id'] %}<span class="badge-owner">👑 Owner</span>{% endif %}<br>
-            <small class="srv-muted">{{ p['full_name'] }}</small></div>
-          <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline grow">
-            {% for r in roles %}
-              <label class="srv-check m-0"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
-                {{ 'checked' if r['id'] in member_roles.get(p['id'], []) }}>
-                <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
-            {% endfor %}
-            {% if roles %}<button class="srv-btn small">Save roles</button>{% else %}<small class="srv-muted">Create roles first</small>{% endif %}
-          </form>
-          {% if p['id'] != server['owner_id'] and p['id'] != user['id'] %}
-            <form method="POST" action="{{ url_for('servers.kick', server_id=sid, user_id=p['id']) }}"
-                  onsubmit="return confirm('Remove {{ p['username'] }} from the server?')"><button class="srv-btn small danger">Kick</button></form>
+          <div class="lh-sm" style="min-width: 150px"><b>{{ p['nickname'] or (p['full_name'] if p['is_bot'] else p['username']) }}</b>
+            {% if p['id'] == server['owner_id'] %}<span class="badge-owner">👑 Owner</span>{% endif %}
+            {% if p['is_bot'] %}<em class="bot-tag">BOT</em>{% endif %}<br>
+            <small class="srv-muted">{{ 'Companion' if p['is_bot'] else '@' ~ p['username'] }}
+              {% if t.timeout_until %}· ⏳ timed out until {{ t.timeout_until[11:16] }}{% endif %}</small></div>
+          {% if 'manage_roles' in P and above and roles %}
+            <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline grow">
+              {% for r in roles %}{% if m.is_manager or r['position'] < m.top %}
+                <label class="srv-check m-0"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
+                  {{ 'checked' if r['id'] in member_roles.get(p['id'], []) }}>
+                  <span style="color: {{ r['color'] }}">{{ r['name'] }}</span></label>
+              {% endif %}{% endfor %}
+              <button class="srv-btn small">Save roles</button>
+            </form>
+          {% else %}<span class="grow"></span>{% endif %}
+          {% if above %}
+            {% if 'timeout' in P %}
+              <form method="POST" action="{{ url_for('servers.timeout', server_id=sid, user_id=p['id']) }}" class="d-flex gap-1">
+                <select name="minutes"><option value="5">5 min</option><option value="60">1 h</option><option value="1440">1 day</option><option value="10080">1 week</option><option value="0">Lift</option></select>
+                <button class="srv-btn small">Timeout</button></form>
+            {% endif %}
+            {% if 'kick' in P %}
+              <form method="POST" action="{{ url_for('servers.kick', server_id=sid, user_id=p['id']) }}"
+                    onsubmit="return confirm('Remove {{ p['username'] }} from the server?')"><button class="srv-btn small danger">Kick</button></form>
+            {% endif %}
+            {% if 'ban' in P %}
+              <form method="POST" action="{{ url_for('servers.ban', server_id=sid, user_id=p['id']) }}" class="d-flex gap-1"
+                    onsubmit="return confirm('Ban {{ p['username'] }}?')"><input name="reason" placeholder="Reason" maxlength="200" style="width: 120px">
+                <button class="srv-btn small danger">Ban</button></form>
+            {% endif %}
           {% endif %}
         </div>
       {% endfor %}
 
+    {# ---------------- COMPANIONS ---------------- #}
+    {% elif tab == 'companions' %}
+      <h3>Companions</h3>
+      <p class="srv-muted">Companions are helpers that live in your server: they answer slash commands, greet people and keep things tidy. Add a ready-made one, or build your own and connect it through the API.</p>
+
+      {% if new_token %}
+        <div class="token-box">
+          <b>{{ 'Webhook URL' if new_token.kind == 'webhook' else 'Bot token' }} — copy it now, it is shown only once</b>
+          {% if new_token.kind == 'webhook' %}
+            <code>{{ request.host_url }}api/hooks/{{ new_token.bot }}/{{ new_token.token }}</code>
+            <small>POST JSON like <code>{"content": "Deploy finished 🚀"}</code> to that address.</small>
+          {% else %}
+            <code>{{ new_token.token }}</code>
+            <small>Send it as <code>Authorization: Bot &lt;token&gt;</code>. See the example below.</small>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <h5 class="mt-3">In this server</h5>
+      {% for b in installed %}
+        {% set spec = catalog.get(b['kind']) %}
+        <details class="set-box comp" {{ 'open' if new_token and new_token.bot == b['id'] }}>
+          <summary>
+            <span class="comp-ico" style="background: {{ spec.color if spec else '#64748b' }}">{{ spec.emoji if spec else ('🔗' if b['kind'] == 'webhook' else '🤖') }}</span>
+            <b>{{ b['name'] }}</b><em class="bot-tag">BOT</em>
+            <small class="srv-muted">{{ 'built in' if spec else ('webhook' if b['kind'] == 'webhook' else 'your companion') }}</small>
+          </summary>
+          {% if spec %}
+            <p class="srv-muted">{{ spec.blurb }}</p>
+            {% if spec.commands %}<p>{% for name, (desc, usage) in spec.commands.items() %}<code>/{{ name }} {{ usage }}</code> {{ desc }}<br>{% endfor %}</p>{% endif %}
+            {% if spec.config %}
+              <form method="POST" action="{{ url_for('servers.config_companion', server_id=sid, bot_id=b['id']) }}" class="set-form">
+                {% for key, label, kind, default, help in spec.config %}
+                  {% if kind == 'check' %}
+                    <label class="srv-check"><input type="checkbox" name="{{ key }}" {{ 'checked' if b.cfg.get(key, default) in ('1', 1, true) }}> {{ label }}</label>
+                  {% elif kind == 'channel' %}
+                    <label>{{ label }}</label>
+                    <select name="{{ key }}"><option value="">Default</option>
+                      {% for c in text_channels %}<option value="{{ c['id'] }}" {{ 'selected' if b.cfg.get(key) == c['id']|string }}>#{{ c['name'] }}</option>{% endfor %}</select>
+                  {% elif kind == 'long' %}
+                    <label>{{ label }}</label><textarea name="{{ key }}" rows="3" maxlength="800">{{ b.cfg.get(key, default) }}</textarea>
+                  {% else %}
+                    <label>{{ label }}</label><input name="{{ key }}" value="{{ b.cfg.get(key, default) }}" maxlength="80">
+                  {% endif %}
+                  {% if help %}<small class="srv-muted">{{ help }}</small>{% endif %}
+                {% endfor %}
+                <button class="srv-btn small">Save</button>
+              </form>
+            {% endif %}
+          {% elif b['kind'] == 'custom' %}
+            <form method="POST" action="{{ url_for('servers.config_companion', server_id=sid, bot_id=b['id']) }}" class="set-form">
+              <label>Name</label><input name="name" value="{{ b['name'] }}" maxlength="30">
+              <label>Interaction URL (we POST slash commands here)</label>
+              <input name="interaction_url" value="{{ b['interaction_url'] }}" maxlength="300" placeholder="https://example.com/my-bot">
+              <button class="srv-btn small">Save</button>
+            </form>
+            <p class="mt-2">Commands: {% for c in bot_commands.get(b['id'], []) %}<code>/{{ c['name'] }}</code> {% else %}<span class="srv-muted">none yet — register them with the API</span>{% endfor %}</p>
+          {% else %}
+            <p class="srv-muted">Posts into <b>#{{ (text_channels|selectattr('id', 'equalto', b['channel_id'])|first)['name'] if (text_channels|selectattr('id', 'equalto', b['channel_id'])|list) else '?' }}</b>.</p>
+          {% endif %}
+          <div class="d-flex gap-2 mt-2">
+            {% if b['kind'] in ('custom', 'webhook') %}
+              <form method="POST" action="{{ url_for('servers.new_token', server_id=sid, bot_id=b['id']) }}" onsubmit="return confirm('The old token stops working. Continue?')">
+                <button class="srv-btn small">New token</button></form>
+            {% endif %}
+            <form method="POST" action="{{ url_for('servers.remove_companion', server_id=sid, bot_id=b['id']) }}" onsubmit="return confirm('Remove {{ b['name'] }}?')">
+              <button class="srv-btn small danger">Remove</button></form>
+          </div>
+        </details>
+      {% else %}<p class="srv-muted">No companions yet. Add one below.</p>{% endfor %}
+
+      <h5 class="mt-4">Add a ready-made companion</h5>
+      <div class="comp-grid">
+        {% for kind in available %}
+          {% set spec = catalog[kind] %}
+          <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="comp-card">
+            <input type="hidden" name="kind" value="{{ kind }}">
+            <span class="comp-ico" style="background: {{ spec.color }}">{{ spec.emoji }}</span>
+            <b>{{ spec.name }}</b><p class="srv-muted">{{ spec.blurb }}</p>
+            <button class="srv-btn small">Add</button>
+          </form>
+        {% else %}<p class="srv-muted">You have added every built-in companion.</p>{% endfor %}
+      </div>
+
+      <h5 class="mt-4">Build your own</h5>
+      <div class="srv-row" style="align-items: stretch">
+        <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="set-box grow set-form">
+          <input type="hidden" name="kind" value="custom">
+          <h6>🤖 Custom companion (API)</h6>
+          <label>Name</label><input name="name" maxlength="30" required placeholder="PitchCoach">
+          <label>Interaction URL (optional)</label><input name="interaction_url" maxlength="300" placeholder="https://example.com/my-bot">
+          <button class="srv-btn small">Create</button>
+        </form>
+        <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="set-box grow set-form">
+          <input type="hidden" name="kind" value="webhook">
+          <h6>🔗 Webhook (post from other tools)</h6>
+          <label>Name</label><input name="name" maxlength="30" required placeholder="GitHub updates">
+          <label>Channel</label>
+          <select name="channel_id">{% for c in text_channels %}<option value="{{ c['id'] }}">#{{ c['name'] }}</option>{% endfor %}</select>
+          <button class="srv-btn small">Create</button>
+        </form>
+      </div>
+
+      <details class="set-box">
+        <summary>📖 How the API works</summary>
+<pre class="api-doc"># send a message (with an embed) as your companion
+curl -X POST {{ request.host_url }}api/bot/messages \
+  -H "Authorization: Bot YOUR_TOKEN" -H "Content-Type: application/json" \
+  -d '{"channel_id": 1, "content": "Hello!", "embed": {"title": "Status", "description": "All good", "color": "#10b981",
+        "fields": [{"name": "Uptime", "value": "99.9%", "inline": true}]}}'
+
+# register slash commands
+curl -X PUT {{ request.host_url }}api/bot/commands -H "Authorization: Bot YOUR_TOKEN" \
+  -H "Content-Type: application/json" -d '{"commands": [{"name": "ping", "description": "Say pong"}]}'
+
+# when someone types /ping we POST this JSON to your Interaction URL:
+# {"type":"command","command":"ping","args":"","user":{"id":3,"username":"maya_k"},"server_id":1,"channel_id":2,"bot_id":4}
+# header X-Companion-Signature = sha256( sha256(token) + body ).  Reply with JSON {"content": "pong"} (or an embed)
+# or post later through /api/bot/messages.
+
+# a webhook only needs the secret URL
+curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: application/json" -d '{"content": "Deployed 🚀"}'</pre>
+      </details>
+
+    {# ---------------- EMOJI ---------------- #}
+    {% elif tab == 'emoji' %}
+      <h3>Custom emoji</h3>
+      <p class="srv-muted">Upload pictures under 512 KB. Members type <code>:name:</code> in chat or pick them from the emoji panel and as reactions.</p>
+      <form method="POST" action="{{ url_for('servers.add_emoji', server_id=sid) }}" enctype="multipart/form-data" class="set-form inline">
+        <input name="name" placeholder="name" maxlength="20" required>
+        <input type="file" name="image" accept="image/png,image/gif,image/webp,image/jpeg" required>
+        <button class="srv-btn">Upload</button>
+      </form>
+      <div class="emoji-grid">
+        {% for e in emojis %}
+          <div class="emoji-item"><img src="{{ url_for('static', filename=e['path']) }}" alt=""><code>:{{ e['name'] }}:</code>
+            <form method="POST" action="{{ url_for('servers.delete_emoji', server_id=sid, emoji_id=e['id']) }}"><button class="srv-btn small danger">Delete</button></form></div>
+        {% else %}<p class="srv-muted">No custom emoji yet.</p>{% endfor %}
+      </div>
+
     {# ---------------- INVITES ---------------- #}
-    {% else %}
+    {% elif tab == 'invite' %}
       <h3>Invites</h3>
-      <p class="srv-muted">Share this code. People paste it on the Servers page to join.</p>
+      <p class="srv-muted">The permanent code works until you reset it. People paste it on the Servers page.</p>
       <div class="invite-box">{{ server['invite_code'] }}</div>
-      <form method="POST" action="{{ url_for('servers.reset_invite', server_id=sid) }}" class="mt-3">
-        <button class="srv-btn">Make a new code</button></form>
+      {% if 'manage_server' in P %}
+        <form method="POST" action="{{ url_for('servers.reset_invite', server_id=sid) }}" class="mt-3">
+          <button class="srv-btn">Make a new permanent code</button></form>
+      {% endif %}
+
+      <h5 class="mt-4">Invite links with limits</h5>
+      <form method="POST" action="{{ url_for('servers.create_invite', server_id=sid) }}" class="set-form inline">
+        <select name="hours"><option value="0">Never expires</option><option value="1">1 hour</option><option value="24">1 day</option><option value="168">7 days</option></select>
+        <select name="max_uses"><option value="0">Unlimited uses</option><option value="1">1 use</option><option value="5">5 uses</option><option value="25">25 uses</option></select>
+        <button class="srv-btn">Create link</button>
+      </form>
+      {% for i in invites %}
+        <div class="set-item">
+          <div class="grow"><code>{{ request.host_url }}servers/invite/{{ i['code'] }}</code><br>
+            <small class="srv-muted">{{ i['uses'] }}{{ ' / ' ~ i['max_uses'] if i['max_uses'] }} uses · {{ 'expires ' ~ i['expires_at'][:16] if i['expires_at'] else 'never expires' }}</small></div>
+          <button type="button" class="srv-btn small" onclick="navigator.clipboard.writeText('{{ request.host_url }}servers/invite/{{ i['code'] }}')">Copy</button>
+          {% if 'manage_server' in P %}
+          <form method="POST" action="{{ url_for('servers.delete_invite', server_id=sid, code=i['code']) }}"><button class="srv-btn small danger">Revoke</button></form>{% endif %}
+        </div>
+      {% endfor %}
+
+    {# ---------------- SAFETY ---------------- #}
+    {% elif tab == 'safety' %}
+      <h3>Safety</h3>
+      {% if 'manage_server' in P %}
+      <form method="POST" action="{{ url_for('servers.save_safety', server_id=sid) }}" class="set-form">
+        <label>Welcome note</label>
+        <input name="welcome" value="{{ server['welcome'] }}" maxlength="300" placeholder="Shown to new members (and used by Herald). {user} and {server} work.">
+        <label>Rules (members must agree before they can chat; leave empty for none)</label>
+        <textarea name="rules" rows="6" maxlength="2000" placeholder="1. Be kind. 2. No spam. 3. Keep pitches honest.">{{ server['rules'] }}</textarea>
+        <button class="srv-btn">Save</button>
+      </form>
+      {% endif %}
+      {% if 'ban' in P %}
+        <h5 class="mt-4">Banned people</h5>
+        {% for b in bans %}
+          <div class="set-item"><div class="grow"><b>@{{ b['username'] }}</b> <small class="srv-muted">{{ b['created_at'][:16] }} {{ '· ' ~ b['reason'] if b['reason'] }}</small></div>
+            <form method="POST" action="{{ url_for('servers.unban', server_id=sid, user_id=b['user_id']) }}"><button class="srv-btn small">Unban</button></form></div>
+        {% else %}<p class="srv-muted">Nobody is banned.</p>{% endfor %}
+      {% endif %}
+      <p class="srv-muted mt-4">Tip: add the <b>Guard</b> companion for word and link filters, and set slow mode on busy channels.</p>
+
+    {# ---------------- AUDIT ---------------- #}
+    {% else %}
+      <h3>Audit log</h3>
+      <p class="srv-muted">The last 150 changes made in this server.</p>
+      <div class="audit">
+        {% for e in entries %}
+          <div class="audit-row"><small>{{ e['created_at'][:16] }}</small><b>@{{ e['username'] or 'someone' }}</b><code>{{ e['action'] }}</code><span>{{ e['detail'] }}</span></div>
+        {% else %}<p class="srv-muted">Nothing yet.</p>{% endfor %}
+      </div>
     {% endif %}
   </main>
 </div>

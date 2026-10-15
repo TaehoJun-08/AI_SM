@@ -1,0 +1,44 @@
+{% from "_avatar.html" import avatar %}
+<div class="mc-banner" style="background: linear-gradient(135deg, {{ server['color'] }}, #141226)"></div>
+<div class="mc-body">
+  <div class="mc-avatar">{{ avatar(p['username'], p['avatar'], 'xl', uid=p['id'] if not p['is_bot'] else None) }}</div>
+  <h5>{{ target.nickname or (p['full_name'] if p['is_bot'] else p['username']) }}
+    {% if p['is_bot'] %}<em class="bot-tag">BOT</em>{% endif %}</h5>
+  <div class="srv-muted">{% if not p['is_bot'] %}@{{ p['username'] }} · {{ p['full_name'] }}{% else %}Companion{% endif %}</div>
+  {% if p['bio'] and not p['is_bot'] %}<p class="mc-bio">{{ p['bio'] }}</p>{% endif %}
+  <div class="mc-roles">
+    {% if target.is_owner %}<span class="role-chip">👑 Owner</span>{% endif %}
+    {% for r in roles %}<span class="role-chip"><i style="background: {{ r['color'] }}"></i>{{ r['name'] }}</span>{% endfor %}
+  </div>
+  <small class="srv-muted">In this server since {{ joined[:10] }}</small>
+  {% if target.timeout_until %}<div class="mc-warn">⏳ Timed out until {{ target.timeout_until[11:16] }}</div>{% endif %}
+  <div class="mc-actions">
+    {% if not p['is_bot'] %}<a class="srv-btn small" href="{{ url_for('profiles.public', username=p['username']) }}">View profile</a>{% endif %}
+    {% if p['id'] == me %}
+      <form method="POST" action="{{ url_for('servers.nickname', server_id=server['id'], user_id=me) }}" class="d-flex gap-1 mt-2">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <input name="nickname" value="{{ target.nickname or '' }}" placeholder="Nickname" maxlength="32">
+        <button class="srv-btn small">Save</button>
+      </form>
+    {% endif %}
+  </div>
+  {% if acts.timeout or acts.kick or acts.ban %}
+    <details class="mc-mod"><summary>Moderate</summary>
+      {% if acts.timeout %}
+        <form method="POST" action="{{ url_for('servers.timeout', server_id=server['id'], user_id=p['id']) }}" class="d-flex gap-1">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <select name="minutes"><option value="5">5 min</option><option value="60">1 hour</option><option value="1440">1 day</option><option value="10080">1 week</option><option value="0">Lift timeout</option></select>
+          <button class="srv-btn small">Timeout</button></form>
+      {% endif %}
+      {% if acts.kick %}
+        <form method="POST" action="{{ url_for('servers.kick', server_id=server['id'], user_id=p['id']) }}" onsubmit="return confirm('Kick this member?')">
+          <input type="hidden" name="next" value="{{ next_url }}"><button class="srv-btn small danger">Kick</button></form>
+      {% endif %}
+      {% if acts.ban %}
+        <form method="POST" action="{{ url_for('servers.ban', server_id=server['id'], user_id=p['id']) }}" class="d-flex gap-1" onsubmit="return confirm('Ban this member?')">
+          <input type="hidden" name="next" value="{{ next_url }}"><input name="reason" placeholder="Reason" maxlength="200">
+          <button class="srv-btn small danger">Ban</button></form>
+      {% endif %}
+    </details>
+  {% endif %}
+</div>

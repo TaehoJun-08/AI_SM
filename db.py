@@ -131,6 +131,47 @@ def chat_needs_attachments(conn):
     return bool(cols) and "attachment" not in cols
 
 
+def add_server_features(conn):
+    """Round two of servers: new columns on old tables, and a rebuild of server_channels
+    (its kind CHECK can't be widened, and (server_id, name) can't stay unique because threads share names)."""
+    def cols(table):
+        return [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
+    adds = {"users": [("is_bot", "INTEGER NOT NULL DEFAULT 0")],
+            "servers": [("rules", "TEXT NOT NULL DEFAULT ''"), ("welcome", "TEXT NOT NULL DEFAULT ''"),
+                        ("base_perms", "INTEGER NOT NULL DEFAULT 15"), ("goal_title", "TEXT NOT NULL DEFAULT ''"),
+                        ("goal_amount", "INTEGER NOT NULL DEFAULT 0"),
+                        ("project_id", "INTEGER REFERENCES projects(id) ON DELETE SET NULL")],
+            "server_roles": [("perms", "INTEGER NOT NULL DEFAULT 0")],
+            "server_members": [("nickname", "TEXT"), ("timeout_until", "TEXT"),
+                               ("accepted_rules", "INTEGER NOT NULL DEFAULT 1")],
+            "server_messages": [("pinned", "INTEGER NOT NULL DEFAULT 0"), ("embed", "TEXT")]}
+    for table, new in adds.items():
+        have = cols(table)
+        for name, definition in new if have else []:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'server_channels'").fetchone()
+    if row and "forum" not in row[0]:
+        conn.execute("""CREATE TABLE server_channels_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+            category_id INTEGER REFERENCES server_categories(id) ON DELETE SET NULL,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'announcement', 'voice', 'forum', 'thread')),
+            topic TEXT NOT NULL DEFAULT '',
+            is_private INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1)),
+            position INTEGER NOT NULL DEFAULT 0,
+            slowmode INTEGER NOT NULL DEFAULT 0,
+            read_only INTEGER NOT NULL DEFAULT 0,
+            parent_id INTEGER REFERENCES server_channels(id) ON DELETE CASCADE,
+            parent_message_id INTEGER,
+            created_by INTEGER)""")
+        conn.execute("""INSERT INTO server_channels_new (id, server_id, category_id, name, kind, topic, is_private, position)
+                        SELECT id, server_id, category_id, name, kind, topic, is_private, position FROM server_channels""")
+        conn.execute("DROP TABLE server_channels")
+        conn.execute("ALTER TABLE server_channels_new RENAME TO server_channels")
+
+
 def init_db():
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -138,6 +179,7 @@ def init_db():
     add_bio(conn)
     add_post_columns(conn)
     add_user_settings(conn)
+    add_server_features(conn)
     rebuild_chat = chat_needs_attachments(conn)
     if rebuild_chat:
         conn.execute("ALTER TABLE dm_messages RENAME TO dm_messages_old")

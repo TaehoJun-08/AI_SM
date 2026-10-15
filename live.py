@@ -199,14 +199,14 @@ def notify_dm(db, thread_id, sender_id, text):
            f"/messages/{thread_id}", key=f"dm:{thread_id}", mute=[("dm", thread_id)])
 
 
-def notify_channel(db, channel, sender_id, text):
+def notify_channel(db, channel, sender_id, text, skip=()):
     from servers.routes import membership, can_read
     server = db.execute("SELECT name FROM servers WHERE id = ?", (channel["server_id"],)).fetchone()
     name = username(db, sender_id)
     people = []
     for r in db.execute("SELECT user_id FROM server_members WHERE server_id = ?", (channel["server_id"],)):
         m = membership(channel["server_id"], r["user_id"])
-        if r["user_id"] != sender_id and m and can_read(m, channel):
+        if r["user_id"] != sender_id and r["user_id"] not in skip and m and not m["pending_rules"] and can_read(m, channel):
             people.append(r["user_id"])
     notify(people, "server", f"#{channel['name']} · {server['name']}", f"@{name}: {text}",
            f"/servers/{channel['server_id']}/{channel['id']}", key=f"srv:{channel['id']}",
