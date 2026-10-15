@@ -112,6 +112,11 @@ def post_message(db, channel, sender_id, body="", *, reply_to=None, attachment=N
                  attach_name=None, embed=None, can_ping_all=False, silent=False):
     """Store a message in a channel, push it to everyone looking at the channel, and notify people.
     Returns the message dict."""
+    bot = db.execute("SELECT config FROM bots WHERE user_id = ?", (sender_id,)).fetchone()
+    if bot:
+        only = json.loads(bot["config"] or "{}").get("only") or []
+        if only and channel["id"] not in only and (channel["parent_id"] or 0) not in only:
+            return None
     embed_json = clean_embed(embed)
     body = (body or "").strip()[:2000]
     if not body and not attachment:

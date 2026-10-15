@@ -54,7 +54,7 @@ def on_send(data):
     gap = channel["slowmode"] if "manage_messages" not in m["perms"] else 0
     if gap and time.time() - _last_sent.get((user_id, channel_id), 0) < gap:
         return tell_only(user_id, channel_id, f"🐢 Slow mode: wait {gap} seconds between messages.")
-    reason = companions.screen(db, server["id"], m, user_id, body)
+    reason = companions.screen(db, server["id"], m, user_id, body, channel)
     if reason:
         log_action(db, server["id"], user_id, "guard.block", reason)
         db.commit()
