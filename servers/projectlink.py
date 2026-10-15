@@ -179,7 +179,10 @@ def follow(db, project_id, user_id):
 
 
 def follower_ids(db, project_id):
-    return [r["user_id"] for r in db.execute("SELECT user_id FROM project_follows WHERE project_id = ?", (project_id,))]
+    """Followers plus everyone whose offer was accepted: sponsors follow automatically."""
+    return [r["user_id"] for r in db.execute(
+        """SELECT user_id FROM project_follows WHERE project_id = ?
+           UNION SELECT sponsor_id FROM interests WHERE project_id = ? AND status = 'accepted'""", (project_id, project_id))]
 
 
 def notify_followers(db, project_id, title, body, skip=()):
@@ -212,7 +215,7 @@ def chip(project_id):
     """The small "12 members · last update 2 days ago" line shown on posts and feed cards."""
     db = get_db()
     row = db.execute(
-        """SELECT s.id, p.stage, (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) AS members,
+        """SELECT s.id, p.stage, (SELECT COUNT(*) FROM server_members sm JOIN users hu ON hu.id = sm.user_id AND hu.is_bot = 0 WHERE sm.server_id = s.id) AS members,
              (SELECT MAX(created_at) FROM project_updates WHERE project_id = p.id) AS last_update
            FROM servers s JOIN projects p ON p.id = s.project_id WHERE s.project_id = ?""", (project_id,)).fetchone()
     if row is None:
@@ -234,8 +237,7 @@ def post_extras(db, project_id, me):
             "updates": db.execute("""SELECT up.*, u.username FROM project_updates up JOIN users u ON u.id = up.author_id
                                      WHERE up.project_id = ? ORDER BY up.id DESC LIMIT 10""", (project_id,)).fetchall(),
             "followers": len(follower_ids(db, project_id)),
-            "following": db.execute("SELECT 1 FROM project_follows WHERE project_id = ? AND user_id = ?",
-                                    (project_id, me)).fetchone() is not None}
+            "following": me in follower_ids(db, project_id)}
 
 
 def check_milestones(db, project_id):
@@ -356,7 +358,9 @@ def toggle_follow(project_id):
     project = db.execute("SELECT innovator_id, title FROM projects WHERE id = ?", (project_id,)).fetchone()
     if project is None or project["innovator_id"] == me:
         abort(404)
-    if db.execute("DELETE FROM project_follows WHERE project_id = ? AND user_id = ?", (project_id, me)).rowcount:
+    if db.execute("SELECT 1 FROM interests WHERE project_id = ? AND sponsor_id = ? AND status = 'accepted'", (project_id, me)).fetchone():
+        flash("You sponsor this project, so you follow it automatically.")
+    elif db.execute("DELETE FROM project_follows WHERE project_id = ? AND user_id = ?", (project_id, me)).rowcount:
         flash("You unfollowed this project.")
     else:
         db.execute("INSERT INTO project_follows (project_id, user_id) VALUES (?, ?)", (project_id, me))

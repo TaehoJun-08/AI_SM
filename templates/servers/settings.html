@@ -187,7 +187,7 @@
 
     {# ---------------- MEMBERS ---------------- #}
     {% elif tab == 'members' %}
-      <h3>Members <small class="srv-muted">— {{ members|length }}</small></h3>
+      <h3>Members <small class="srv-muted">— {{ members|rejectattr('is_bot')|list|length }}</small></h3>
       {% for p in members %}
         {% set t = tops[p['id']] %}
         {% set above = (not p['is_bot']) and p['id'] != user['id'] and (m.is_owner or (not t.is_owner and m.top > t.top)) %}
@@ -199,7 +199,7 @@
             <small class="srv-muted">{{ 'Companion' if p['is_bot'] else '@' ~ p['username'] }}
               {% if t.timeout_until %}· ⏳ timed out until {{ t.timeout_until[11:16] }}{% endif %}</small></div>
           {% if 'manage_roles' in P and above and roles %}
-            <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline grow">
+            <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline role-form">
               {% for r in roles %}{% if m.is_manager or r['position'] < m.top %}
                 <label class="srv-check m-0"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
                   {{ 'checked' if r['id'] in member_roles.get(p['id'], []) }}>
@@ -207,8 +207,8 @@
               {% endif %}{% endfor %}
               <button class="srv-btn small">Save roles</button>
             </form>
-          {% else %}<span class="grow"></span>{% endif %}
-          {% if above %}
+          {% endif %}
+          {% if above %}<div class="mem-actions">
             {% if 'timeout' in P %}
               <form method="POST" action="{{ url_for('servers.timeout', server_id=sid, user_id=p['id']) }}" class="d-flex gap-1">
                 <select name="minutes"><option value="5">5 min</option><option value="60">1 h</option><option value="1440">1 day</option><option value="10080">1 week</option><option value="0">Lift</option></select>
@@ -223,7 +223,7 @@
                     onsubmit="return confirm('Ban {{ p['username'] }}?')"><input name="reason" placeholder="Reason" maxlength="200" style="width: 120px">
                 <button class="srv-btn small danger">Ban</button></form>
             {% endif %}
-          {% endif %}
+          </div>{% endif %}
         </div>
       {% endfor %}
 
@@ -286,6 +286,16 @@
             <p class="mt-2">Commands: {% for c in bot_commands.get(b['id'], []) %}<code>/{{ c['name'] }}</code> {% else %}<span class="srv-muted">none yet — register them with the API</span>{% endfor %}</p>
           {% else %}
             <p class="srv-muted">Posts into <b>#{{ (text_channels|selectattr('id', 'equalto', b['channel_id'])|first)['name'] if (text_channels|selectattr('id', 'equalto', b['channel_id'])|list) else '?' }}</b>.</p>
+          {% endif %}
+          {% if b['kind'] != 'webhook' %}
+            <form method="POST" action="{{ url_for('servers.companion_channels', server_id=sid, bot_id=b['id']) }}" class="set-form mt-3">
+              <label><b>Where it works</b> <small class="srv-muted">— tick channels; none ticked means everywhere</small></label>
+              <div class="d-flex flex-wrap gap-3">
+                {% for c in text_channels %}<label class="srv-check m-0"><input type="checkbox" name="channel_ids" value="{{ c['id'] }}"
+                  {{ 'checked' if c['id'] in (b.cfg.get('only') or []) }}> #{{ c['name'] }}</label>{% endfor %}
+              </div>
+              <button class="srv-btn small">Save channels</button>
+            </form>
           {% endif %}
           <div class="d-flex gap-2 mt-2">
             {% if b['kind'] in ('custom', 'webhook') %}

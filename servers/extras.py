@@ -285,6 +285,22 @@ def remove_companion(server_id, bot_id):
     return back(server_id, "companions")
 
 
+@servers_bp.route("/<int:server_id>/companions/<int:bot_id>/channels", methods=["POST"])
+@login_required
+def companion_channels(server_id, bot_id):
+    need(server_id, "manage_companions")
+    own_bot(server_id, bot_id)
+    db = get_db()
+    valid = {r["id"] for r in db.execute("SELECT id FROM server_channels WHERE server_id = ? AND kind IN ('text','announcement','forum')", (server_id,))}
+    only = sorted({int(i) for i in request.form.getlist("channel_ids") if i.isdigit() and int(i) in valid})
+    cfg = __import__("json").loads(db.execute("SELECT config FROM bots WHERE id = ?", (bot_id,)).fetchone()["config"] or "{}")
+    cfg["only"] = only
+    db.execute("UPDATE bots SET config = ? WHERE id = ?", (__import__("json").dumps(cfg), bot_id))
+    db.commit()
+    flash("Works only in the chosen channels." if only else "Works in every channel.")
+    return back(server_id, "companions")
+
+
 @servers_bp.route("/<int:server_id>/companions/<int:bot_id>/config", methods=["POST"])
 @login_required
 def config_companion(server_id, bot_id):
@@ -292,7 +308,7 @@ def config_companion(server_id, bot_id):
     bot = own_bot(server_id, bot_id)
     db = get_db()
     if bot["kind"] in companions.CATALOG:
-        cfg = {}
+        cfg = {"only": __import__("json").loads(bot["config"] or "{}").get("only") or []}
         for key, _, kind, default, _ in companions.CATALOG[bot["kind"]]["config"]:
             cfg[key] = ("1" if request.form.get(key) else "0") if kind == "check" else request.form.get(key, default).strip()[:800]
         db.execute("UPDATE bots SET config = ? WHERE id = ?", (__import__("json").dumps(cfg), bot_id))

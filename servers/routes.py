@@ -193,7 +193,7 @@ def goal_progress(db, server):
 def home():
     me = session["user_id"]
     explore = get_db().execute(
-        """SELECT s.*, (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) AS members
+        """SELECT s.*, (SELECT COUNT(*) FROM server_members sm JOIN users hu ON hu.id = sm.user_id AND hu.is_bot = 0 WHERE sm.server_id = s.id) AS members
            FROM servers s WHERE s.is_public = 1
              AND s.id NOT IN (SELECT server_id FROM server_members WHERE user_id = ?)
              AND s.id NOT IN (SELECT server_id FROM server_bans WHERE user_id = ?)
@@ -201,7 +201,7 @@ def home():
            ORDER BY members DESC, s.id DESC LIMIT 24""", (me, me)).fetchall()
     projects = get_db().execute(
         """SELECT s.id, s.color, s.description, p.id AS pid, p.title, p.stage, p.domain, p.funding_needed,
-             (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) AS members,
+             (SELECT COUNT(*) FROM server_members sm JOIN users hu ON hu.id = sm.user_id AND hu.is_bot = 0 WHERE sm.server_id = s.id) AS members,
              (SELECT COALESCE(SUM(amount), 0) FROM interests WHERE project_id = p.id AND status = 'accepted') AS raised
            FROM servers s JOIN projects p ON p.id = s.project_id
            WHERE s.is_public = 1 AND p.innovator_id != ?
@@ -339,7 +339,7 @@ def join_code():
 def join_public(server_id):
     """Joining always asks first: GET shows the "Join this server?" page, POST with confirm=1 joins."""
     db = get_db()
-    server = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) AS members
+    server = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM server_members sm JOIN users hu ON hu.id = sm.user_id AND hu.is_bot = 0 WHERE sm.server_id = s.id) AS members
                            FROM servers s WHERE s.id = ?""", (server_id,)).fetchone()
     if server is None or not server["is_public"]:
         abort(404)

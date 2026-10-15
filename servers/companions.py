@@ -133,6 +133,12 @@ def bots_of(db, server_id, kind=None):
     return [dict(r, cfg=json.loads(r["config"] or "{}")) for r in rows if kind is None or r["kind"] == kind]
 
 
+def works_in(bot, channel):
+    """A companion with a channel list only works there (threads count as their parent); no list = everywhere."""
+    only = bot["cfg"].get("only") or []
+    return not only or channel["id"] in only or (channel["parent_id"] or 0) in only
+
+
 def settings_data(db, server_id):
     installed = bots_of(db, server_id)
     have = {b["kind"] for b in installed}
@@ -184,11 +190,13 @@ def on_join(db, server_id, user_id):
         post_message(db, channel, bot["user_id"], text, silent=False)
 
 
-def screen(db, server_id, m, user_id, body):
+def screen(db, server_id, m, user_id, body, channel=None):
     """Guard: a reason to refuse this message, or None. Managers are exempt."""
     if "manage_messages" in m["perms"]:
         return None
     for bot in bots_of(db, server_id, "guard"):
+        if channel is not None and not works_in(bot, channel):
+            continue
         cfg = bot["cfg"]
         low = body.lower()
         for word in re.split(r"[,\n]", cfg.get("words", "")):
@@ -206,6 +214,8 @@ def screen(db, server_id, m, user_id, body):
 def on_message(db, server, channel, user_id):
     """Sparks: a little XP for talking, at most once every 45 seconds."""
     for bot in bots_of(db, server["id"], "sparks"):
+        if not works_in(bot, channel):
+            continue
         now = int(time.time())
         row = db.execute("SELECT * FROM member_xp WHERE server_id = ? AND user_id = ?", (server["id"], user_id)).fetchone()
         if row and now - row["last_at"] < 45:
@@ -266,7 +276,13 @@ def run_command(db, server, m, channel, user_id, text):
         return ("rewrite", (rest + " ¯\\_(ツ)_/¯").strip())
     if name == "spoiler" and rest:
         return ("rewrite", f"||{rest}||")
+    blocked = None
     for bot in bots_of(db, server["id"]):
+        mine = (bot["kind"] in CATALOG and name in CATALOG[bot["kind"]]["commands"]) or (
+            bot["kind"] == "custom" and db.execute("SELECT 1 FROM bot_commands WHERE bot_id = ? AND name = ?", (bot["id"], name)).fetchone())
+        if mine and not works_in(bot, channel):
+            blocked = blocked or bot
+            continue
         if bot["kind"] in CATALOG and name in CATALOG[bot["kind"]]["commands"]:
             ctx.bot = bot
             HANDLERS[(bot["kind"], name)](ctx)
@@ -274,6 +290,9 @@ def run_command(db, server, m, channel, user_id, text):
         if bot["kind"] == "custom" and db.execute("SELECT 1 FROM bot_commands WHERE bot_id = ? AND name = ?", (bot["id"], name)).fetchone():
             send_to_bot(db, bot, server, channel, user_id, ctx.username, name, rest)
             return ("done",)
+    if blocked:
+        tell_only(user_id, channel["id"], f"{blocked['name']} isn't allowed to work in this channel.")
+        return ("done",)
     return None
 
 
