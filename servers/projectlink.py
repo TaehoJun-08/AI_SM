@@ -1,8 +1,9 @@
 """One project, one server. The owner opens a server from the project's post; everybody who wants
 to follow that project joins it, and everything in there is about that project only: updates,
 questions, sponsors and a live status card (stage, funding, sponsors)."""
+import json
 from datetime import datetime
-from flask import Blueprint, redirect, url_for, flash, session, abort, request
+from flask import Blueprint, render_template, redirect, url_for, flash, session, abort, request
 from media import save_media, delete_media
 from db import get_db
 from helpers import login_required
@@ -60,11 +61,51 @@ def status_embed(db, server):
 
 
 def scout_post(db, server_id, text="", embed=None):
-    """Say something in the project server's announcements, as Sponsor Scout."""
+    """Say something in the project server, as Sponsor Scout, in the channel Scout was given
+    (#announcements by default). Returns True if it was really posted."""
     bots = companions.bots_of(db, server_id, "scout")
-    channel = companions.first_text_channel(db, server_id, "announcements")
-    if bots and channel:
-        post_message(db, channel, bots[0]["user_id"], text, embed=embed)
+    if not bots:
+        return False
+    channel = companions.channel_from_config(db, server_id, bots[0]["cfg"], "announcements")
+    return bool(channel and post_message(db, channel, bots[0]["user_id"], text, embed=embed))
+
+
+def _backlog(db, project_id):
+    return db.execute("SELECT COUNT(*) FROM pending_posts WHERE project_id = ?", (project_id,)).fetchone()[0]
+
+
+def project_post(db, project_id, text="", embed=None):
+    """A message that belongs to ONE project: it goes to that project's server only. If the server (or
+    Scout's channel) isn't ready, it waits in the queue and is sent later by flush_pending()."""
+    sid = server_of(project_id)
+    waiting = _backlog(db, project_id)
+    if sid and not waiting and scout_post(db, sid, text, embed):
+        return True
+    db.execute("INSERT INTO pending_posts (project_id, body, embed) VALUES (?, ?, ?)",
+               (project_id, text, json.dumps(embed) if embed else None))
+    db.commit()
+    if not waiting:                      # tell the owner once, when the queue starts
+        project = db.execute("SELECT title, innovator_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if project:
+            live.notify([project["innovator_id"]], "server", f"Set up a server for “{project['title']}”",
+                        "Messages about this project are waiting. They'll be sent as soon as the server is ready.",
+                        f"/servers/project/{project_id}/setup" if sid is None else f"/servers/{sid}")
+    return False
+
+
+def flush_pending(db, project_id=None):
+    """Send queued messages, oldest first, for one project (or all). Stops at the first one that can't be
+    delivered yet so the order is kept."""
+    ids = [project_id] if project_id else [r[0] for r in db.execute("SELECT DISTINCT project_id FROM pending_posts")]
+    for pid in ids:
+        sid = server_of(pid)
+        if sid is None:
+            continue
+        for row in db.execute("SELECT * FROM pending_posts WHERE project_id = ? ORDER BY id", (pid,)).fetchall():
+            if not scout_post(db, sid, row["body"], json.loads(row["embed"]) if row["embed"] else None):
+                break
+            db.execute("DELETE FROM pending_posts WHERE id = ?", (row["id"],))
+            db.commit()
 
 
 def on_stage_change(db, project_id, old, new, old_ask, new_ask):
@@ -111,9 +152,9 @@ def on_sponsorship(db, project_id, sponsor_id):
     live.server_changed(sid)
 
 
-def create_project_server(db, project):
+def create_project_server(db, project, name=None):
     owner = project["innovator_id"]
-    sid = create_server(owner, project["title"][:40], "💡", STAGE_COLOR[project["stage"]], project["summary"][:200], 1)
+    sid = create_server(owner, (name or project["title"])[:40], "💡", STAGE_COLOR[project["stage"]], project["summary"][:200], 1)
     db.execute("UPDATE servers SET project_id = ? WHERE id = ?", (project["id"], sid))
     db.execute("UPDATE server_channels SET topic = 'Project updates from the team' WHERE server_id = ? AND name = 'announcements'", (sid,))
     db.execute("UPDATE server_channels SET name = 'feedback', topic = 'Suggestions and ideas for this project' WHERE server_id = ? AND kind = 'forum'", (sid,))
@@ -142,7 +183,26 @@ def create_project_server(db, project):
     scout_post(db, sid, embed=status_embed(db, db.execute("SELECT * FROM servers WHERE id = ?", (sid,)).fetchone()))
     for r in db.execute("SELECT sponsor_id FROM interests WHERE project_id = ? AND status = 'accepted'", (project["id"],)):
         live.notify([r["sponsor_id"]], "server", "Project server opened", f"“{project['title']}” now has its own server", f"/servers/{sid}")
+    flush_pending(db, project["id"])      # anything that happened before the server existed
     return sid
+
+
+@servers_bp.route("/project/<int:project_id>/setup", methods=["GET", "POST"])
+@login_required
+def setup_project(project_id):
+    """Shown right after posting a project: name the project's server and open it."""
+    db = get_db()
+    project = owned(db, project_id)
+    sid = server_of(project_id)
+    if sid:
+        return redirect(url_for("servers.view", server_id=sid))
+    if request.method == "POST":
+        name = " ".join(request.form.get("name", "").split())[:40] or project["title"][:40]
+        sid = create_project_server(db, project, name)
+        flash("Your project server is ready. Share the post so people can follow it. ✨")
+        return redirect(url_for("servers.view", server_id=sid))
+    return render_template("servers/project_setup.html", project=project, waiting=_backlog(db, project_id),
+                           color=STAGE_COLOR[project["stage"]])
 
 
 @servers_bp.route("/project/<int:project_id>/open", methods=["POST"])
@@ -248,10 +308,9 @@ def check_milestones(db, project_id):
     for m in db.execute("SELECT * FROM project_milestones WHERE project_id = ? AND announced = 0 AND amount <= ?", (project_id, got)).fetchall():
         db.execute("UPDATE project_milestones SET announced = 1 WHERE id = ?", (m["id"],))
         db.commit()
-        if sid:
-            scout_post(db, sid, embed={"title": f"🎯 Milestone reached: {m['title']}", "color": "#10b981",
-                                       "description": f"₹{m['amount']:,} is covered. Thank you, sponsors!",
-                                       "progress": {"value": got, "goal": max(got, m["amount"]), "label": f"₹{got:,} sponsored"}})
+        project_post(db, project_id, embed={"title": f"🎯 Milestone reached: {m['title']}", "color": "#10b981",
+                                            "description": f"₹{m['amount']:,} is covered. Thank you, sponsors!",
+                                            "progress": {"value": got, "goal": max(got, m["amount"]), "label": f"₹{got:,} sponsored"}})
         notify_followers(db, project_id, f"🎯 {title['title']}: milestone reached", m["title"])
     live.touch(["posts"])
 
@@ -288,12 +347,10 @@ def add_update(project_id):
     db.execute("INSERT INTO project_updates (project_id, author_id, body, image) VALUES (?, ?, ?, ?)",
                (project_id, session["user_id"], body, image))
     db.commit()
-    sid = server_of(project_id)
-    if sid:
-        embed = {"title": "📣 Project update", "description": body, "color": "#f59e0b", "footer": f"by @{live.username(db, session['user_id'])}"}
-        if image:
-            embed["image"] = "/static/" + image
-        scout_post(db, sid, embed=embed)
+    embed = {"title": "📣 Project update", "description": body, "color": "#f59e0b", "footer": f"by @{live.username(db, session['user_id'])}"}
+    if image:
+        embed["image"] = "/static/" + image
+    project_post(db, project_id, embed=embed)
     notify_followers(db, project_id, f"📣 {project['title']}", body)
     live.to_feed("post_changed", {"id": project_id})
     live.touch(["posts"])

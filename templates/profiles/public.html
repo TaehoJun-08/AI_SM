@@ -16,8 +16,8 @@
         {% endif %}
       </div>
       <div class="profile-stats">
-        <span><b>{{ stats.posts }}</b> posts</span>
-        <span><b>{{ stats.sponsors }}</b> sponsors</span>
+        <span><b data-countup="{{ stats.posts }}">{{ stats.posts }}</b> posts</span>
+        <span><b data-countup="{{ stats.sponsors }}">{{ stats.sponsors }}</b> sponsors</span>
       </div>
       <div><b>{{ person['full_name'] }}</b></div>
       {% if person['bio'] %}<div class="profile-bio">{{ person['bio'] }}</div>{% endif %}

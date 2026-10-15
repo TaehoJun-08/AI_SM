@@ -322,6 +322,8 @@ def config_companion(server_id, bot_id):
         db.execute("UPDATE users SET full_name = ? WHERE id = ?", (name, bot["user_id"]))
     audit(server_id, "companion.config", bot["name"])
     db.commit()
+    from servers import projectlink
+    projectlink.flush_pending(db)
     flash("Saved.")
     return back(server_id, "companions")
 

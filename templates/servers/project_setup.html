@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Open your project server · Sponsorship Matchmaker{% endblock %}
+{% block body_class %}discord-page{% endblock %}
+{% block main %}
+{% include "_flashes.html" %}
+<div class="srv-app">
+  {% include "servers/_rail.html" %}
+  <div class="srv-home gate">
+    <div class="srv-card gate-card text-center">
+      <p class="srv-muted mb-2">Your project is live. One more step!</p>
+      <div class="srv-icon mx-auto" style="--c: {{ color }}">💡</div>
+      <h3 class="mt-3">Open a server for “{{ project['title'] }}”</h3>
+      <p class="srv-muted">Every sponsor, milestone and update for this project will land in its own server, and nowhere else.
+        Followers and sponsors can join it to chat with you.</p>
+      {% if waiting %}
+        <div class="join-proj">
+          <b>📬 {{ waiting }} message{{ '' if waiting == 1 else 's' }} waiting</b>
+          <small>They'll be delivered the moment the server is ready.</small>
+        </div>
+      {% endif %}
+      <form method="POST" class="text-start mt-3">
+        <label class="srv-muted small mb-1">Server name</label>
+        <input class="form-control mb-3" name="name" maxlength="40" value="{{ project['title'][:40] }}" required autofocus>
+        <button class="srv-btn w-100">Create the server ✨</button>
+      </form>
+      <a class="dc-link d-inline-block mt-3" href="{{ url_for('feed.post', post_id=project['id']) }}">Not now, I'll do it later</a>
+      <p class="srv-muted small mt-2 mb-0">Messages that arrive before then are kept safe and sent when you create it.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

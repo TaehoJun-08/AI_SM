@@ -26,7 +26,10 @@
       {% for post in posts %}{% include "feed/_post.html" %}{% endfor %}
     </div>
     <div id="feed-end" class="feed-end">
-      {% if posts %}<span class="muted">Loading more…</span>
+      {% if posts %}<div class="post skeleton-post" aria-label="Loading more">
+          <div class="sk-row"><i class="sk sk-circle"></i><i class="sk sk-line w40"></i></div>
+          <i class="sk sk-block"></i><i class="sk sk-line w70"></i><i class="sk sk-line w50"></i>
+        </div>
       {% else %}
         <div class="empty-state">
           <div class="empty-ring">{{ icon('plus', 40) }}</div>
