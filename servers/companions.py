@@ -231,17 +231,13 @@ def on_message(db, server, channel, user_id):
 
 
 def on_sponsorship(db, project_id, sponsor_id, amount):
-    """Scout cheers in every server where the project's owner is a member."""
+    """Scout cheers in the server of THIS project only (queued until that server exists)."""
     project = db.execute("SELECT title, innovator_id FROM projects WHERE id = ?", (project_id,)).fetchone()
     if project is None:
         return
     from servers import projectlink
     projectlink.on_sponsorship(db, project_id, sponsor_id)
-    for row in db.execute("SELECT server_id FROM server_members WHERE user_id = ?", (project["innovator_id"],)).fetchall():
-        for bot in bots_of(db, row["server_id"], "scout"):
-            channel = channel_from_config(db, row["server_id"], bot["cfg"], "announcements")
-            if channel:
-                post_message(db, channel, bot["user_id"],
+    projectlink.project_post(db, project_id,
                              f"💸 @{live.username(db, sponsor_id)} just backed “{project['title']}” by "
                              f"@{live.username(db, project['innovator_id'])} with ₹{(amount or 0):,}!")
 
@@ -534,6 +530,8 @@ def _loop(app):
 
 
 def tick(db):
+    from servers import projectlink
+    projectlink.flush_pending(db)      # queued project messages, once a server and its Scout are ready
     now = int(time.time())
     for r in db.execute("SELECT * FROM reminders WHERE due_at <= ?", (now,)).fetchall():
         db.execute("DELETE FROM reminders WHERE id = ?", (r["id"],))

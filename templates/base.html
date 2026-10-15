@@ -23,7 +23,7 @@
   <script src="{{ url_for('static', filename='js/live.js') }}"></script>
   {% endif %}
 </head>
-<body class="{% if user %}app-body{% endif %} {% block body_class %}{% endblock %}">
+<body class="{% if user %}app-body{% endif %} {% block body_class %}{% endblock %}"{% if user %} data-uid="{{ user['id'] }}"{% if request.endpoint == 'feed.index' %} data-tour="auto"{% endif %}{% endif %}>
 {% if not user %}
 <nav class="navbar navbar-dark app-navbar px-3">
   <a class="navbar-brand" href="{{ url_for('feed.index') }}">✨ Sponsorship Matchmaker</a>
@@ -47,6 +47,10 @@
 {% endblock %}
 
 <script src="{{ url_for('static', filename='bootstrap/bootstrap.bundle.min.js') }}"></script>
+{% if user %}
+<script src="{{ url_for('static', filename='js/micro.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tour.js') }}"></script>
+{% endif %}
 <script>
   // Flash messages float on top and fade away by themselves.
   document.querySelectorAll(".app-body .flash-stack").forEach((el) => {

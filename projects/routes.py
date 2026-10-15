@@ -87,7 +87,7 @@ def new():
     live.to_feed("post_new", {"id": cur.lastrowid})
     live.touch(["posts"])
     flash("Your project is live! ✨")
-    return redirect(url_for("feed.post", post_id=cur.lastrowid))
+    return redirect(url_for("servers.setup_project", project_id=cur.lastrowid))
 
 
 @projects_bp.route("/<int:project_id>/delete", methods=["POST"])

@@ -58,6 +58,7 @@
       {# ---------------- APPEARANCE ---------------- #}
       {% elif tab == 'appearance' %}
         <h5>Appearance</h5>
+        <button type="button" class="btn btn-secondary btn-sm mb-3" data-start-tour>✨ Replay the welcome tour</button>
         <p class="muted">Changes show instantly. Press Save to keep them on every device.</p>
         <form method="POST" action="{{ url_for('settings.save_appearance') }}" id="appearance-form">
           <input type="hidden" name="form" value="1">

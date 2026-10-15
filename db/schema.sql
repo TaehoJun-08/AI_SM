@@ -409,3 +409,14 @@ CREATE TABLE IF NOT EXISTS project_follows (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (project_id, user_id)
 );
+
+-- Messages for a project's server that could not be delivered yet (no server, or Sponsor Scout has no channel).
+-- They are sent in order the moment the server and its Scout are ready.
+CREATE TABLE IF NOT EXISTS pending_posts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL DEFAULT '',
+    embed      TEXT,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_pending_posts ON pending_posts (project_id, id);

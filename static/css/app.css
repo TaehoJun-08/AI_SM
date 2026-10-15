@@ -1045,3 +1045,84 @@ a.p-item:hover { border-color: var(--a1); }
 .dc-mini i { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, #0ea5e9, #10b981); }
 .srv-ms { margin: 6px 0 0; font-size: .75rem; color: var(--muted); }
 .srv-ms span.ok { color: #10b981; }
+
+/* =====================================================================
+   Welcome tour + micro-interactions
+   ===================================================================== */
+
+/* ---------- Page enter: content rises in, first posts cascade ---------- */
+.app-main { animation: page-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+#feed > .post { animation: card-in .6s cubic-bezier(.2, .8, .2, 1) both; }
+#feed > .post:nth-child(2) { animation-delay: .08s; }
+#feed > .post:nth-child(3) { animation-delay: .16s; }
+#feed > .post:nth-child(n+4) { animation-delay: .22s; }
+@keyframes card-in { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+.stories .story { animation: card-in .55s cubic-bezier(.2, .8, .2, 1) both; }
+.stories .story:nth-child(2) { animation-delay: .05s; } .stories .story:nth-child(3) { animation-delay: .1s; }
+.stories .story:nth-child(4) { animation-delay: .15s; } .stories .story:nth-child(n+5) { animation-delay: .2s; }
+.story { transition: transform .25s; } .story:hover { transform: translateY(-4px) scale(1.06); }
+
+/* ---------- Buttons: lift on hover, squash on press, ripple ---------- */
+.app-body .btn-primary, .sn-create, .tour-next { position: relative; overflow: hidden; transition: transform .2s, filter .2s, box-shadow .2s; }
+.app-body .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 .6rem 1.4rem rgba(219, 39, 119, .4); }
+.app-body .btn-primary:active, .sn-create:active { transform: scale(.96); }
+.ripple { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, .55); transform: scale(0); animation: ripple .65s ease-out forwards; pointer-events: none; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+.sn-link .ico { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.sn-link:hover .ico { transform: scale(1.18) rotate(-6deg); }
+.like-btn.pop .ico { animation: like-pop .5s cubic-bezier(.3, 1.8, .5, 1); }
+@keyframes like-pop { 0% { transform: scale(1); } 35% { transform: scale(1.45) rotate(-8deg); } 100% { transform: scale(1); } }
+
+/* ---------- Skeleton loaders ---------- */
+.sk { display: block; border-radius: .7rem; background: linear-gradient(100deg, var(--hover) 30%, var(--raised) 50%, var(--hover) 70%); background-size: 250% 100%; animation: sk-shimmer 1.4s linear infinite; }
+@keyframes sk-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.skeleton-post { text-align: left; pointer-events: none; margin-bottom: 0; }
+.sk-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sk-circle { width: 40px; height: 40px; border-radius: 50%; }
+.sk-line { height: 12px; margin: 10px 0; } .sk-row .sk-line { margin: 0; flex: 1; }
+.sk-block { height: 220px; border-radius: 1.1rem; }
+.w40 { max-width: 40%; } .w50 { max-width: 50%; } .w70 { max-width: 70%; }
+.post-media img.img-loading { min-height: 260px; opacity: 0; }
+.post-media:has(img.img-loading) { background: linear-gradient(100deg, var(--hover) 30%, var(--raised) 50%, var(--hover) 70%); background-size: 250% 100%; animation: sk-shimmer 1.4s linear infinite; }
+.post-media img { transition: opacity .5s; }
+
+/* ---------- Confetti canvas ---------- */
+.confetti { position: fixed; inset: 0; z-index: 3000; pointer-events: none; }
+
+/* ---------- Welcome tour ---------- */
+.tour { position: fixed; inset: 0; z-index: 2500; opacity: 0; transition: opacity .35s; }
+.tour.on { opacity: 1; } .tour.out { opacity: 0; }
+.tour-spot {
+  position: fixed; border: 2px solid rgba(255, 255, 255, .85); pointer-events: none;
+  box-shadow: 0 0 0 100vmax rgba(12, 7, 32, .72), 0 0 0 5px rgba(139, 92, 246, .55), 0 0 36px 6px rgba(236, 72, 153, .55);
+  transition: left .45s cubic-bezier(.2, .8, .2, 1), top .45s cubic-bezier(.2, .8, .2, 1), width .45s cubic-bezier(.2, .8, .2, 1), height .45s cubic-bezier(.2, .8, .2, 1), border-radius .3s;
+  animation: spot-pulse 2s ease-in-out infinite;
+}
+.tour-spot.none { left: 50%; top: 50%; width: 0; height: 0; border-color: transparent; box-shadow: 0 0 0 100vmax rgba(12, 7, 32, .72); animation: none; }
+@keyframes spot-pulse { 50% { box-shadow: 0 0 0 100vmax rgba(12, 7, 32, .72), 0 0 0 9px rgba(139, 92, 246, .3), 0 0 46px 10px rgba(236, 72, 153, .6); } }
+.tour-card {
+  position: fixed; width: min(340px, calc(100vw - 24px)); padding: 20px 20px 16px; border-radius: 1.5rem;
+  background: var(--card-solid); color: var(--text); border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg); opacity: 0; transition: left .45s cubic-bezier(.2, .8, .2, 1), top .45s cubic-bezier(.2, .8, .2, 1);
+}
+.tour-card::before { content: ""; position: absolute; inset: -3px; z-index: -1; border-radius: calc(1.5rem + 3px); background: var(--grad-d); opacity: .6; filter: blur(16px); }
+.tour-card { isolation: auto; z-index: 0; }
+.tour-card::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--card-solid); }
+.tour-card.in { opacity: 1; animation: tour-card-in .45s cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes tour-card-in { from { opacity: 0; scale: .92; } to { opacity: 1; scale: 1; } }
+.tour-card h5 { font-weight: 800; margin: 10px 0 6px; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tour-card p { margin: 0 0 14px; color: var(--text-2); line-height: 1.5; font-size: .95rem; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dots i { height: 5px; flex: 1; border-radius: 99px; background: var(--raised); transition: background .3s; }
+.tour-dots i.past { background: var(--a2); opacity: .6; } .tour-dots i.on { background: var(--grad); }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+.tour-gap { flex: 1; }
+.tour-skip, .tour-back { border: 0; background: none; color: var(--muted); font-weight: 600; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+.tour-skip:hover, .tour-back:hover { background: var(--hover); color: var(--text); }
+.tour-next { border: 0; border-radius: 999px; padding: 9px 22px; font-weight: 700; color: #fff; background: var(--grad); box-shadow: 0 .4rem 1rem rgba(219, 39, 119, .35); cursor: pointer; }
+.tour-next:hover { transform: translateY(-2px); filter: brightness(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main, #feed > .post, .stories .story, .sk, .tour-spot, .tour-card.in { animation: none; }
+}
