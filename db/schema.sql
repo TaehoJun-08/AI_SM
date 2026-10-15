@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     accepts_offers INTEGER NOT NULL DEFAULT 1,
     activity_seen TEXT,
     status        TEXT    NOT NULL DEFAULT 'online',
+    is_bot        INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
@@ -151,8 +152,16 @@ CREATE TABLE IF NOT EXISTS servers (
     description TEXT    NOT NULL DEFAULT '',
     invite_code TEXT    NOT NULL UNIQUE,
     is_public   INTEGER NOT NULL DEFAULT 1 CHECK (is_public IN (0, 1)),
+    rules       TEXT    NOT NULL DEFAULT '',
+    welcome     TEXT    NOT NULL DEFAULT '',
+    base_perms  INTEGER NOT NULL DEFAULT 15,
+    goal_title  TEXT    NOT NULL DEFAULT '',
+    goal_amount INTEGER NOT NULL DEFAULT 0,
+    project_id  INTEGER REFERENCES projects(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_servers_project ON servers (project_id) WHERE project_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS server_roles (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -161,6 +170,7 @@ CREATE TABLE IF NOT EXISTS server_roles (
     color     TEXT    NOT NULL DEFAULT '#99aab5',
     is_admin  INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
     position  INTEGER NOT NULL DEFAULT 0,
+    perms     INTEGER NOT NULL DEFAULT 0,
     UNIQUE (server_id, name)
 );
 
@@ -168,6 +178,9 @@ CREATE TABLE IF NOT EXISTS server_members (
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    nickname  TEXT,
+    timeout_until TEXT,
+    accepted_rules INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (server_id, user_id)
 );
 
@@ -191,11 +204,15 @@ CREATE TABLE IF NOT EXISTS server_channels (
     server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     category_id INTEGER REFERENCES server_categories(id) ON DELETE SET NULL,
     name        TEXT    NOT NULL,
-    kind        TEXT    NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'announcement')),
+    kind        TEXT    NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'announcement', 'voice', 'forum', 'thread')),
     topic       TEXT    NOT NULL DEFAULT '',
     is_private  INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1)),
     position    INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (server_id, name)
+    slowmode    INTEGER NOT NULL DEFAULT 0,
+    read_only   INTEGER NOT NULL DEFAULT 0,
+    parent_id   INTEGER REFERENCES server_channels(id) ON DELETE CASCADE,
+    parent_message_id INTEGER,
+    created_by  INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS channel_roles (
@@ -214,6 +231,8 @@ CREATE TABLE IF NOT EXISTS server_messages (
     attach_name TEXT,
     reply_to INTEGER REFERENCES server_messages(id) ON DELETE SET NULL,
     edited INTEGER NOT NULL DEFAULT 0,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    embed TEXT,
     created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
     CHECK (length(body) > 0 OR attachment IS NOT NULL)
 );
@@ -251,4 +270,142 @@ CREATE TABLE IF NOT EXISTS mutes (
     kind      TEXT    NOT NULL CHECK (kind IN ('dm', 'channel', 'server')),
     target_id INTEGER NOT NULL,
     PRIMARY KEY (user_id, kind, target_id)
+);
+
+-- ---------- Servers, round two: permissions, moderation, companions (bots), extras ----------
+
+CREATE TABLE IF NOT EXISTS server_bans (
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason    TEXT    NOT NULL DEFAULT '',
+    banned_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT   NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    actor_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action    TEXT    NOT NULL,
+    detail    TEXT    NOT NULL DEFAULT '',
+    created_at TEXT   NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_audit_server ON audit_log (server_id, id);
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+    message_id INTEGER NOT NULL REFERENCES server_messages(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    emoji      TEXT    NOT NULL,
+    PRIMARY KEY (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+    message_id INTEGER NOT NULL REFERENCES server_messages(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    choice     INTEGER NOT NULL,
+    PRIMARY KEY (message_id, user_id)
+);
+
+-- A companion is a bot. Built-in ones have a kind like 'dice'; your own have kind 'custom'
+-- (talk to us over the API) or 'webhook' (post into one channel with a secret URL).
+CREATE TABLE IF NOT EXISTS bots (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    kind        TEXT    NOT NULL,
+    name        TEXT    NOT NULL,
+    token_hash  TEXT,
+    interaction_url TEXT NOT NULL DEFAULT '',
+    channel_id  INTEGER REFERENCES server_channels(id) ON DELETE CASCADE,
+    config      TEXT    NOT NULL DEFAULT '{}',
+    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_bots_server ON bots (server_id);
+
+CREATE TABLE IF NOT EXISTS bot_commands (
+    bot_id      INTEGER NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+    name        TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (bot_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS member_xp (
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    xp        INTEGER NOT NULL DEFAULT 0,
+    last_at   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS reminders (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    due_at    INTEGER NOT NULL,
+    text      TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS server_invites (
+    code       TEXT PRIMARY KEY,
+    server_id  INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    max_uses   INTEGER NOT NULL DEFAULT 0,
+    uses       INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS server_emojis (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    name      TEXT    NOT NULL,
+    path      TEXT    NOT NULL,
+    UNIQUE (server_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS server_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    creator_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    title       TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    starts_at   TEXT    NOT NULL,
+    channel_id  INTEGER REFERENCES server_channels(id) ON DELETE SET NULL,
+    notified    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS event_rsvps (
+    event_id INTEGER NOT NULL REFERENCES server_events(id) ON DELETE CASCADE,
+    user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (event_id, user_id)
+);
+
+-- ---------- Project servers: updates, milestones, followers ----------
+
+CREATE TABLE IF NOT EXISTS project_updates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    author_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 500),
+    image      TEXT,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_project_updates ON project_updates (project_id, id);
+
+CREATE TABLE IF NOT EXISTS project_milestones (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    title      TEXT    NOT NULL,
+    amount     INTEGER NOT NULL CHECK (amount > 0),
+    done       INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+    announced  INTEGER NOT NULL DEFAULT 0 CHECK (announced IN (0, 1))
+);
+
+CREATE TABLE IF NOT EXISTS project_follows (
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (project_id, user_id)
 );

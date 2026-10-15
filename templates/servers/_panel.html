@@ -1,0 +1,60 @@
+{# A side panel slid in next to the chat: pins, threads, search results or events. #}
+{% from "_avatar.html" import avatar %}
+<div class="panel-head">
+  <b>{{ {'pins': '📌 Pinned messages', 'threads': '🧵 Threads', 'search': '🔎 Search results', 'events': '📅 Events'}[kind] }}</b>
+  <button type="button" class="srv-icon-btn" data-close-panel aria-label="Close">&times;</button>
+</div>
+<div class="panel-body">
+{% if kind == 'pins' %}
+  {% for it in items %}
+    <a class="p-item" href="{{ url_for('servers.view', server_id=server['id'], channel_id=channel['id'], msg=it['id']) }}">
+      <div><b>{{ it['name'] }}</b> <small>{{ it['created_at'][:16] }}</small></div>
+      <div class="fmt">{{ it['body'] }}</div>
+    </a>
+  {% else %}<p class="srv-muted">Nothing is pinned here yet. People with Manage messages can pin from the right-click menu.</p>{% endfor %}
+
+{% elif kind == 'threads' %}
+  {% for t in items %}
+    <a class="p-item" href="{{ url_for('servers.view', server_id=server['id'], channel_id=t['id']) }}">
+      <div><b>🧵 {{ t['name'] }}</b></div><small>{{ t['replies'] }} message{{ '' if t['replies'] == 1 else 's' }} · started by @{{ t['username'] or 'someone' }}</small>
+    </a>
+  {% else %}<p class="srv-muted">No threads in #{{ channel['name'] }}. Right-click a message and pick Thread.</p>{% endfor %}
+
+{% elif kind == 'search' %}
+  <p class="srv-muted">“{{ q }}” — {{ items|length }} result{{ '' if items|length == 1 else 's' }}</p>
+  {% for it in items %}
+    <a class="p-item" href="{{ url_for('servers.view', server_id=server['id'], channel_id=it['channel_id'], msg=it['id']) }}">
+      <div><small>#{{ it['channel_name'] }}</small> <b>{{ it['name'] }}</b> <small>{{ it['created_at'][:16] }}</small></div>
+      <div class="fmt">{{ it['body'] }}</div>
+    </a>
+  {% else %}<p class="srv-muted">Nothing found. Search looks inside channels you can read.</p>{% endfor %}
+
+{% else %}
+  {% for e in events %}
+    <div class="p-item event">
+      <div><b>{{ e['title'] }}</b></div>
+      <small>🕒 {{ e['starts_at'][:16] }}{% if e['username'] %} · by @{{ e['username'] }}{% endif %}</small>
+      {% if e['description'] %}<div class="fmt">{{ e['description'] }}</div>{% endif %}
+      <div class="d-flex gap-2 mt-2">
+        <button class="srv-btn small {{ '' if e['mine'] else 'ghost' }}" data-post="{{ url_for('servers.rsvp', server_id=server['id'], event_id=e['id']) }}">
+          {{ '✓ Interested' if e['mine'] else '☆ Interested' }} · {{ e['going'] }}</button>
+        {% if 'manage_events' in m.perms %}
+          <button class="srv-btn small danger" data-post="{{ url_for('servers.delete_event', server_id=server['id'], event_id=e['id']) }}">Cancel</button>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}<p class="srv-muted">No upcoming events.</p>{% endfor %}
+  {% if 'manage_events' in m.perms %}
+    <form method="POST" action="{{ url_for('servers.add_event', server_id=server['id']) }}" class="set-form panel-form" data-ajax>
+      <h6>New event</h6>
+      <input type="hidden" name="ajax" value="1">
+      <input name="title" placeholder="Pitch practice night" maxlength="80" required>
+      <input type="datetime-local" name="starts_at" required>
+      <select name="channel_id"><option value="">Announce in the main channel</option>
+        {% for c in channels %}<option value="{{ c['id'] }}">#{{ c['name'] }}</option>{% endfor %}</select>
+      <input name="description" placeholder="What is it about?" maxlength="300">
+      <button class="srv-btn small">Create event</button>
+    </form>
+  {% endif %}
+{% endif %}
+</div>

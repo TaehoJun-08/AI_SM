@@ -157,6 +157,8 @@ def edit(project_id):
     db.commit()
     for media_id in removed:
         delete_media(existing[media_id])
+    from servers import projectlink
+    projectlink.on_stage_change(db, project_id, project["stage"], data["stage"], project["funding_needed"], data["funding_needed"])
     live.to_feed("post_changed", {"id": project_id})
     live.touch(["posts"])
     flash("Project updated. ✨")

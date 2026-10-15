@@ -167,5 +167,7 @@ def respond(interest_id, action):
     live.offer_changed(offer["project_id"], me, offer["sponsor_id"])
     live.notify([offer["sponsor_id"]], "activity", "🎉 Offer accepted",
                 f"@{live.username(db, me)} accepted your offer for {offer['title']}", f"/messages/{thread['id']}", key="activity")
+    from servers import companions
+    companions.on_sponsorship(db, offer["project_id"], offer["sponsor_id"], offer["amount"])
     flash("You're connected! 🎉 Say hello.")
     return redirect(url_for("dms.thread", thread_id=thread["id"]))

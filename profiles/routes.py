@@ -11,7 +11,7 @@ def public(username):
     db = get_db()
     person = db.execute(
         """SELECT id, full_name, username, bio, avatar, accepts_offers, created_at
-           FROM users WHERE username = ?""",
+           FROM users WHERE username = ? AND is_bot = 0""",
         (username,),
     ).fetchone()
     if person is None:

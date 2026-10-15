@@ -24,13 +24,14 @@
     {% set grouped = prev and prev['sender_id'] == m['sender_id'] %}
     <div class="msg {{ 'mine' if m['sender_id'] == user['id'] }} {{ 'grouped' if grouped }}" data-sender="{{ m['sender_id'] }}" data-id="{{ m['id'] }}" data-author="{{ m['name'] or m['full_name'] }}"
          data-can-delete="{{ 1 if (m['sender_id'] == user['id'] or can_manage) else 0 }}"
-         data-can-edit="{{ 1 if (m['sender_id'] == user['id'] and not m['attachment']) else 0 }}">
+         data-can-edit="{{ 1 if (m['sender_id'] == user['id'] and not m['attachment'] and not m['embed']) else 0 }}"
+         {% if m['reactions'] is defined %}data-x='{{ {"reactions": m["reactions"], "votes": m["votes"], "embed": m["embed"], "pinned": m["pinned"], "thread_id": m["thread_id"], "thread_count": m["thread_count"], "bot": m["is_bot"], "mention_name": m["username"]}|tojson }}'{% endif %}>
       {% if m['avatar'] %}<span class="avatar-sm"><img src="{{ url_for('static', filename=m['avatar']) }}" alt=""></span>{% else %}<span class="avatar-sm" {% if m['color'] %}style="background: {{ m['color'] }}"{% endif %}>{{ (m['name'] or m['full_name'])[0]|upper }}</span>{% endif %}
       <div class="msg-main">
         <div class="msg-meta"><strong {% if m['color'] %}style="color: {{ m['color'] }}"{% endif %}>{{ m['name'] or m['full_name'] }}</strong>
           <small>{{ m['created_at'][11:16] }}</small>{% if m['edited'] %} <small class="edited">(edited)</small>{% endif %}</div>
         {% if m['reply_name'] %}<div class="msg-reply" data-reply="{{ m['reply_to'] }}"><b>{{ m['reply_name'] }}</b><span>{{ m['reply_text'] }}</span></div>{% endif %}
-        {% if m['body'] %}<div class="msg-body" title="{{ m['created_at'] }}">{{ m['body'] }}</div>{% endif %}
+        {% if m['body'] and not m['embed'] %}<div class="msg-body" title="{{ m['created_at'] }}">{{ m['body'] }}</div>{% endif %}
         {{ attachment(m) }}
       </div>
     </div>

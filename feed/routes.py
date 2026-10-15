@@ -60,7 +60,7 @@ def index():
            ORDER BY last_post DESC LIMIT 12""").fetchall()
     suggested = db.execute(
         """SELECT id, username, full_name, avatar FROM users
-           WHERE id != :me
+           WHERE id != :me AND is_bot = 0
              AND id NOT IN (SELECT CASE WHEN user_a = :me THEN user_b ELSE user_a END FROM dm_threads
                             WHERE :me IN (user_a, user_b) AND status IN ('accepted', 'pending'))
            ORDER BY id DESC LIMIT 5""", {"me": session["user_id"]}).fetchall()
@@ -107,7 +107,9 @@ def post(post_id):
         """SELECT c.id, c.user_id, c.body, c.created_at, u.username FROM comments c
            JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.id""",
         (post_id,)).fetchall()
-    return render_template("feed/post.html", post=posts[0], comments=comments)
+    from servers import projectlink
+    return render_template("feed/post.html", post=posts[0], comments=comments,
+                           ex=projectlink.post_extras(get_db(), post_id, session["user_id"]))
 
 
 @feed_bp.route("/p/<int:post_id>/like", methods=["POST"])
@@ -200,7 +202,7 @@ def search():
     if q:
         people = get_db().execute(
             """SELECT id, username, full_name, bio, avatar FROM users
-               WHERE username LIKE :like OR full_name LIKE :like
+               WHERE (username LIKE :like OR full_name LIKE :like) AND is_bot = 0
                ORDER BY username LIMIT 12""", {"like": like}).fetchall()
         where.append("(p.title LIKE :like OR p.summary LIKE :like OR p.description LIKE :like "
                      "OR p.domain LIKE :like OR u.username LIKE :like)")

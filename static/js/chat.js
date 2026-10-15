@@ -58,7 +58,7 @@ function addMessage(m) {
   row.dataset.id = m.id;
   row.dataset.author = name;
   row.dataset.canDelete = (m.sender_id === myId || canManage) ? "1" : "0";
-  row.dataset.canEdit = (m.sender_id === myId && !m.attachment) ? "1" : "0";
+  row.dataset.canEdit = (m.sender_id === myId && !m.attachment && !m.embed) ? "1" : "0";
   row.innerHTML = '<span class="avatar-sm"></span><div class="msg-main"><div class="msg-meta">'
     + '<strong></strong> <small></small></div><div class="msg-body"></div></div>';
   const avatar = row.querySelector(".avatar-sm");
@@ -85,9 +85,10 @@ function addMessage(m) {
     row.querySelector(".msg-meta").after(quote);
   }
   const body = row.querySelector(".msg-body");
-  if (m.body) body.textContent = m.body; else body.remove();
+  if (m.body && !m.embed) body.textContent = m.body; else body.remove();
   if (m.attachment) row.querySelector(".msg-main").appendChild(attachmentNode(m));
   log.appendChild(row);
+  window.dispatchEvent(new CustomEvent("msg:add", { detail: { row: row, m: m } }));   // server.js dresses it up
   stickToBottom();
 }
 
@@ -157,6 +158,7 @@ socket.on("edited", (data) => {
   if (!row) return;
   const body = row.querySelector(".msg-body");
   if (body) body.textContent = data.body;
+  window.dispatchEvent(new CustomEvent("msg:edit", { detail: { row: row, body: data.body } }));
   if (!row.querySelector(".edited")) {
     const tag = document.createElement("small");
     tag.className = "edited";
@@ -232,6 +234,15 @@ function openMenu(row, x, y) {
   menu.querySelector('[data-act="copy"]').hidden = !hasText;
   menu.querySelector('[data-act="edit"]').hidden = !(row.dataset.canEdit === "1" && log.dataset.edit);
   menu.querySelector('[data-act="delete"]').hidden = !(row.dataset.canDelete === "1" && log.dataset.delete);
+  menu.querySelectorAll("[data-extra]").forEach((b) => b.remove());     // buttons added by server.js (pin, thread...)
+  (window.msgMenuExtras || []).forEach((item) => {
+    if (item.show && !item.show(row)) return;
+    const button = document.createElement("button");
+    button.dataset.extra = item.act;
+    button.dataset.act = item.act;
+    button.textContent = item.label;
+    menu.insertBefore(button, menu.querySelector('[data-act="delete"]'));
+  });
   menu.hidden = false;
   const w = menu.offsetWidth, h = menu.offsetHeight;
   menu.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
@@ -271,6 +282,8 @@ menu.addEventListener("click", (event) => {
   if (!act || !row) return;
   closeMenu();
   const id = Number(row.dataset.id);
+  const extra = (window.msgMenuExtras || []).find((item) => item.act === act);
+  if (extra) { extra.run(row, id); return; }
   if (act === "reply") {
     const text = row.querySelector(".msg-body")?.textContent
       || (row.querySelector(".att-img") ? "📷 Photo" : row.querySelector(".att-video") ? "🎥 Video"
@@ -280,11 +293,13 @@ menu.addEventListener("click", (event) => {
     showBar();
     input.focus();
   } else if (act === "copy") {
-    navigator.clipboard?.writeText(row.querySelector(".msg-body").textContent);
+    const b = row.querySelector(".msg-body");
+    navigator.clipboard?.writeText(b.dataset.raw ?? b.textContent);
   } else if (act === "edit") {
     replyTo = null;
     editing = { id: id };
-    input.value = row.querySelector(".msg-body").textContent;
+    const eb = row.querySelector(".msg-body");
+    input.value = eb.dataset.raw ?? eb.textContent;
     showBar();
     input.focus();
   } else if (act === "delete") {
@@ -340,7 +355,8 @@ if (form && fileInput && panel) {
     }
   });
   picker.addEventListener("emoji-click", (event) => {
-    const emoji = event.detail.unicode;
+    const emoji = event.detail.unicode || (event.detail.name ? `:${event.detail.name}:` : "");
+    if (!emoji) return;
     const start = input.selectionStart ?? input.value.length;
     const end = input.selectionEnd ?? input.value.length;
     input.value = input.value.slice(0, start) + emoji + input.value.slice(end);

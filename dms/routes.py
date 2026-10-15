@@ -80,7 +80,7 @@ def sidebar(me):
         term = q.lstrip("@")
         people = get_db().execute(
             """SELECT id, full_name, username, avatar FROM users
-               WHERE (username LIKE :like OR full_name LIKE :like) AND id != :me
+               WHERE (username LIKE :like OR full_name LIKE :like) AND id != :me AND is_bot = 0
                ORDER BY username = :term DESC, username LIMIT 10""",
             {"like": f"%{term}%", "term": term, "me": me},
         ).fetchall()

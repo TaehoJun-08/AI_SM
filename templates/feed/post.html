@@ -41,6 +41,62 @@
           <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
           <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
         </div>
+
+        {% set chip = project_chip(post.id) %}
+        <div class="proj-extra" data-region="proj-extra" data-live="posts">
+          <div class="proj-row">
+            {% if chip %}
+              <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}">
+                <button class="proj-chip" title="Open the project server">💬 {{ chip.members }} member{{ '' if chip.members == 1 else 's' }}{% if chip.last %} · last update {{ chip.last }}{% endif %} · {{ chip.stage }}</button></form>
+            {% endif %}
+            {% if not mine %}
+              <form method="POST" action="{{ url_for('projupdates.toggle_follow', project_id=post.id) }}">
+                <button class="proj-chip {{ 'on' if ex.following }}">{{ '🔔 Following' if ex.following else '＋ Follow' }} · {{ ex.followers }}</button></form>
+            {% else %}
+              <span class="proj-chip">👥 {{ ex.followers }} follower{{ '' if ex.followers == 1 else 's' }}</span>
+            {% endif %}
+          </div>
+
+          {% if ex.milestones or mine %}
+            <h6 class="proj-h">🎯 Milestones</h6>
+            {% for m in ex.milestones %}
+              <div class="ms {{ m.state }}">
+                <span class="ms-dot">{{ '✓' if m.state != 'open' else '' }}</span>
+                <span class="ms-title">{{ m.title }}</span>
+                <small>₹{{ '{:,}'.format(m.amount) }} · {{ {'open': 'not funded yet', 'funded': 'funded', 'done': 'done'}[m.state] }}</small>
+                {% if mine %}
+                  <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='done') }}"><button class="ms-btn" title="Mark the work done / not done">{{ '↩' if m.done else '✔ done' }}</button></form>
+                  <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='delete') }}"><button class="ms-btn" title="Remove">✕</button></form>
+                {% endif %}
+              </div>
+            {% endfor %}
+            {% if mine and ex.milestones|length < 6 %}
+              <form method="POST" action="{{ url_for('projupdates.add_milestone', project_id=post.id) }}" class="ms-form">
+                <input name="title" maxlength="60" placeholder="What the money unlocks" required>
+                <input name="amount" type="number" min="1" max="{{ post.funding_needed }}" placeholder="₹ amount" required>
+                <button>Add</button>
+              </form>
+            {% endif %}
+          {% endif %}
+
+          {% if ex.updates or mine %}
+            <h6 class="proj-h">📣 Updates</h6>
+            {% if mine %}
+              <form method="POST" action="{{ url_for('projupdates.add_update', project_id=post.id) }}" enctype="multipart/form-data" class="upd-form">
+                <textarea name="body" rows="2" maxlength="500" placeholder="Share progress with your followers…" required></textarea>
+                <div class="d-flex gap-2 align-items-center"><input type="file" name="image" accept="image/*"><button>Post update</button></div>
+              </form>
+            {% endif %}
+            {% for u in ex.updates %}
+              <div class="upd">
+                <small class="muted">{{ u.created_at[:16] }}</small>
+                <p>{{ u.body }}</p>
+                {% if u.image %}<img src="{{ url_for('static', filename=u.image) }}" alt="">{% endif %}
+                {% if mine %}<form method="POST" action="{{ url_for('projupdates.delete_update', project_id=post.id, update_id=u.id) }}"><button class="ms-btn">Delete</button></form>{% endif %}
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
         <hr>
         <div class="comment-list latest-comments">
           {% for c in comments %}
@@ -54,6 +110,11 @@
 
       <div class="post-actions">
         <button type="button" class="icon-btn like-btn {{ 'liked' if post.liked }}" data-like>{{ icon('heart', 26, post.liked) }}</button>
+        {% set psid = project_server(post.id) %}
+        {% if psid or mine %}
+          <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}">
+            <button class="icon-btn proj-link" title="One server for this project: updates, questions and status">💬 {{ 'Project server' if psid else 'Create project server' }}</button></form>
+        {% endif %}
         {% if not mine %}
           <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
             <button class="icon-btn">{{ icon('send', 26) }}</button></form>
