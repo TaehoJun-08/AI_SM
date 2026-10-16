@@ -76,12 +76,27 @@
             </select>
           </div>
         </div>
-        <label class="form-label fw-semibold" for="funding_needed">Funding goal</label>
-        <div class="input-group mb-4">
-          <span class="input-group-text">₹</span>
-          <input id="funding_needed" name="funding_needed" type="number" class="form-control"
-                 min="1" step="1" placeholder="500000" value="{{ form.get('funding_needed', '') }}" required>
+        <label class="form-label fw-semibold">What kind of sponsors are you looking for?</label>
+        <div class="kind-pick mb-3">
+          {% for key, glyph, title, text in [('money', '💰', 'Money', 'Funding towards a goal'),
+                                              ('pilot', '🌱', 'Free sponsor', 'Someone who uses your product and gives feedback'),
+                                              ('goods', '🎁', 'Goods or services', 'Hosting, tools, equipment, mentoring…')] %}
+            <label class="kind-opt">
+              <input type="checkbox" name="kind_{{ key }}" value="1" {{ 'checked' if kinds[key] }} data-kind-pick="{{ key }}">
+              <span><i>{{ glyph }}</i><b>{{ title }}</b><small>{{ text }}</small></span>
+            </label>
+          {% endfor %}
         </div>
+        <div id="money-goal" {{ 'hidden' if not kinds['money'] }}>
+          <label class="form-label fw-semibold" for="funding_needed">Funding goal</label>
+          <div class="input-group mb-4">
+            <span class="input-group-text">₹</span>
+            <input id="funding_needed" name="funding_needed" type="number" class="form-control"
+                   min="1" step="1" placeholder="500000" value="{{ form.get('funding_needed', '') if kinds['money'] else '' }}"
+                   {{ 'required' if kinds['money'] }}>
+          </div>
+        </div>
+        <p class="muted small mb-4">You can pick more than one. Sponsors can combine them, and you can accept or counter each part.</p>
         <button class="btn btn-primary w-100">{{ 'Save changes' if project else 'Share post' }}</button>
         <a class="d-block text-center mt-2 muted" href="{{ url_for('feed.index') }}">Cancel</a>
       </div>
@@ -89,6 +104,12 @@
   </form>
 </div>
 <script>
+  // The funding goal only matters when you're asking for money.
+  const moneyBox = document.querySelector("[data-kind-pick=money]");
+  moneyBox.addEventListener("change", () => {
+    document.getElementById("money-goal").hidden = !moneyBox.checked;
+    document.getElementById("funding_needed").required = moneyBox.checked;
+  });
   // Photos and videos add up: every pick (or drop) is added to the list, and each can be removed.
   const maxFiles = {{ max_media }};
   const existing = {{ media|length }};

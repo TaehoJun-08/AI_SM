@@ -1,0 +1,19 @@
+{% from "_icons.html" import icon %}
+{# The Sponsor button, or the state of your own offer. Needs: post #}
+{% set kinds_attr %}data-ok-money="{{ post.accepts_money }}" data-ok-goods="{{ post.accepts_goods }}" data-ok-pilot="{{ post.accepts_pilot }}"{% endset %}
+{% if post.my_offer == 'pending' and post.my_turn == 'sponsor' %}
+  <a class="offer-state offer-counter" href="{{ url_for('deals.room', interest_id=post.my_offer_id) }}"
+     title="The creator sent a counter-offer">↔ Counter-offer · your turn</a>
+{% elif post.my_offer in ['pending', 'accepted'] %}
+  <button type="button" class="offer-state offer-{{ post.my_offer }} offer-edit" data-edit-offer="{{ post.my_offer_id }}"
+          data-title="{{ post.title }}" data-amount="{{ post.my_amount or '' }}" data-goods="{{ post.my_goods }}"
+          data-pilot="{{ post.my_pilot }}" data-message="{{ post.my_message }}" {{ kinds_attr|safe }}
+          title="Change your offer">{{ {'pending': 'Offer sent', 'accepted': 'Sponsoring ✓'}[post.my_offer] }} · {{ terms_text({'money': post.my_amount, 'goods': post.my_goods, 'pilot': post.my_pilot}) }} ✏️</button>
+{% elif post.my_offer == 'declined' %}
+  <span class="offer-state offer-declined">Offer declined</span>
+{% elif not post.accepts_offers %}
+  <span class="offer-state">Offers paused</span>
+{% else %}
+  <button type="button" class="btn-sponsor ms-auto" data-sponsor="{{ post.id }}" data-title="{{ post.title }}" {{ kinds_attr|safe }}>
+    {{ icon('rupee', 18) if post.accepts_money else '🌱' }} Sponsor</button>
+{% endif %}

@@ -34,18 +34,7 @@
     {% if not mine %}
       <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
         <button class="icon-btn" aria-label="Message">{{ icon('send', 26) }}</button></form>
-      {% if post.my_offer in ['pending', 'accepted'] %}
-        <button type="button" class="offer-state offer-{{ post.my_offer }} offer-edit" data-edit-offer="{{ post.my_offer_id }}"
-                  data-title="{{ post.title }}" data-amount="{{ post.my_amount }}" data-message="{{ post.my_message }}"
-                  title="Change your offer">{{ {'pending': 'Offer sent', 'accepted': 'Sponsoring ✓'}[post.my_offer] }} · ₹{{ '{:,}'.format(post.my_amount or 0) }} ✏️</button>
-      {% elif post.my_offer == 'declined' %}
-        <span class="offer-state offer-declined">Offer declined</span>
-      {% elif not post.accepts_offers %}
-        <span class="offer-state">Offers paused</span>
-      {% else %}
-        <button type="button" class="btn-sponsor ms-auto" data-sponsor="{{ post.id }}" data-title="{{ post.title }}">
-          {{ icon('rupee', 18) }} Sponsor</button>
-      {% endif %}
+      {% include "feed/_sponsor_btn.html" %}
     {% else %}
       <a class="btn-sponsor ghost ms-auto" href="{{ url_for('feed.activity') }}">View offers</a>
     {% endif %}
@@ -53,10 +42,13 @@
 
   <div class="post-body">
     <b class="like-count" data-count="{{ post.like_count }}">{{ post.like_count }} like{{ '' if post.like_count == 1 else 's' }}</b>
+    {% include "feed/_kinds.html" %}
+    {% if post.accepts_money %}
     <div class="fund">
       <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
       <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
     </div>
+    {% endif %}
     <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
       <b>{{ post.title }}</b> — {{ post.summary }}</p>
     {% set chip = project_chip(post.id) %}

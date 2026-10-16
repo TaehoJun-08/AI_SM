@@ -7,6 +7,8 @@ from auth.routes import auth_bp
 from feed.routes import feed_bp
 from projects.routes import projects_bp
 from interests.routes import interests_bp
+from deals import deals_bp
+import deals
 from servers.routes import servers_bp
 from dms.routes import dms_bp
 from reports.routes import reports_bp
@@ -30,6 +32,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(feed_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(interests_bp)
+app.register_blueprint(deals_bp)
+app.jinja_env.globals["terms_text"] = deals.describe
 app.register_blueprint(servers_bp)
 app.register_blueprint(dms_bp)
 app.register_blueprint(reports_bp)

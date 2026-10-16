@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Deal · {{ offer['title'] }}{% endblock %}
+{% set KIND = {'offer': ('📨', 'sent an offer'), 'counter': ('↔', 'sent a counter-offer'), 'accept': ('🤝', 'agreed to the deal'),
+               'decline': ('✖', 'ended the deal'), 'withdraw': ('↩️', 'withdrew'), 'edit': ('✏️', 'changed the offer')} %}
+{% macro chips(amount, goods, pilot) -%}
+  <div class="deal-chips">
+    {% if amount %}<span class="dchip money">💰 ₹{{ '{:,}'.format(amount) }}</span>{% endif %}
+    {% if goods %}<span class="dchip goods">🎁 {{ goods }}</span>{% endif %}
+    {% if pilot %}<span class="dchip pilot">🌱 Free sponsor</span>{% endif %}
+  </div>
+{%- endmacro %}
+{% block content %}
+<div class="narrow deal-room">
+  <a class="muted text-decoration-none" href="{{ url_for('feed.activity') }}">← Activity</a>
+  <div class="deal-head">
+    {{ avatar(other['full_name'], other['avatar'], href=url_for('profiles.public', username=other['username'])) }}
+    <div class="flex-grow-1">
+      <h4 class="mb-0">{{ offer['title'] }}</h4>
+      <span class="muted">Deal with <a class="post-user" href="{{ url_for('profiles.public', username=other['username']) }}">@{{ other['username'] }}</a>
+        · <a href="{{ url_for('feed.post', post_id=offer['project_id']) }}">view post</a></span>
+    </div>
+    {% if offer['status'] == 'accepted' %}<span class="offer-state offer-accepted">🤝 Agreed</span>
+    {% elif offer['status'] == 'declined' %}<span class="offer-state offer-declined">Declined</span>
+    {% elif offer['status'] == 'withdrawn' %}<span class="offer-state offer-declined">Withdrawn</span>
+    {% elif your_turn %}<span class="offer-state offer-counter">✨ Your turn</span>
+    {% else %}<span class="offer-state offer-pending">Waiting for @{{ other['username'] }}</span>{% endif %}
+  </div>
+
+  <div data-region="deal" data-live="engagement">
+    <div class="deal-now {{ 'agreed' if offer['status'] == 'accepted' }}">
+      <small class="muted text-uppercase fw-bold">{{ 'Agreed terms' if offer['status'] == 'accepted' else 'On the table now' }}</small>
+      {{ chips(terms['money'], terms['goods'], terms['pilot']) }}
+    </div>
+
+    <h6 class="section-title">How the deal went</h6>
+    <div class="deal-timeline">
+      {% for r in rounds|reverse %}
+        {% set icon_, verb = KIND[r['kind']] %}
+        <div class="round round-{{ r['kind'] }}">
+          <span class="round-dot">{{ icon_ }}</span>
+          <div class="round-body">
+            <div><b>{{ 'You' if r['actor_id'] == user['id'] else '@' ~ r['username'] }}</b> {{ verb }}
+              <small class="muted ms-1">{{ r['created_at'][:16] }}</small></div>
+            {% if r['kind'] in ['offer', 'counter', 'accept', 'edit'] %}{{ chips(r['amount'], r['goods'], r['pilot']) }}{% endif %}
+            {% if r['summary'] and r['kind'] in ['counter', 'accept', 'decline', 'edit'] %}<div class="round-sum">{{ r['summary'] }}</div>{% endif %}
+            {% if r['note'] %}<div class="round-note">“{{ r['note'] }}”</div>{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div data-region="deal-form" data-live="engagement">
+    {% if offer['status'] == 'pending' and your_turn %}
+      <form method="POST" action="{{ url_for('deals.answer', interest_id=offer['id']) }}" class="deal-form" id="deal-form">
+        <h6 class="section-title mt-4">Your answer, part by part</h6>
+        {% for part, title in [('money', '💰 Money'), ('goods', '🎁 Goods or services'), ('pilot', '🌱 Free sponsor')] %}
+          {% if terms[part] %}
+            <div class="deal-part" data-part="{{ part }}">
+              <div class="deal-part-top">
+                <b>{{ title }}</b>
+                <span class="dchip {{ part }}">{% if part == 'money' %}₹{{ '{:,}'.format(terms['money']) }}{% elif part == 'goods' %}{{ terms['goods'] }}{% else %}Will use it &amp; give feedback{% endif %}</span>
+              </div>
+              <div class="seg">
+                <label><input type="radio" name="d_{{ part }}" value="accept" checked><span>✅ Accept</span></label>
+                {% if part != 'pilot' %}<label><input type="radio" name="d_{{ part }}" value="counter"><span>↔ Counter</span></label>{% endif %}
+                <label><input type="radio" name="d_{{ part }}" value="decline"><span>✖ Decline</span></label>
+              </div>
+              {% if part == 'money' %}
+                <div class="input-group deal-counter" hidden><span class="input-group-text">₹</span>
+                  <input class="form-control" type="number" min="1" step="1" name="v_money" value="{{ terms['money'] }}" placeholder="Your amount"></div>
+              {% elif part == 'goods' %}
+                <input class="form-control deal-counter" hidden maxlength="200" name="v_goods" value="{{ terms['goods'] }}" placeholder="What you'd like instead">
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+        <label class="form-label fw-semibold mt-3" for="deal-note">A note <span class="muted">(optional)</span></label>
+        <textarea id="deal-note" name="note" rows="2" maxlength="300" class="form-control mb-3" placeholder="Explain your answer or ask a question…"></textarea>
+        <div class="deal-outcome" id="deal-outcome"></div>
+        <button class="btn btn-primary w-100" id="deal-submit">Send answer</button>
+        <p class="muted small mt-2 mb-0">There's no limit on rounds. If you counter, the turn goes to {{ '@' ~ other['username'] }}. When nothing is left to counter, the deal is agreed with the parts you accepted.</p>
+      </form>
+    {% elif offer['status'] == 'pending' %}
+      <div class="deal-wait"><span class="wait-dots"><i></i><i></i><i></i></span>
+        Waiting for @{{ other['username'] }} to answer. You'll get a notification the moment they do.</div>
+    {% elif offer['status'] == 'accepted' %}
+      <div class="deal-wait done">🤝 This deal is agreed. <a href="{{ url_for('dms.inbox') }}">Open your chat</a> to plan the next steps.</div>
+    {% else %}
+      <div class="deal-wait">This deal is closed.</div>
+    {% endif %}
+  </div>
+</div>
+<script>
+  // Counter boxes appear when "Counter" is picked, and the button tells you what will happen.
+  function dealOutcome() {
+    const form = document.getElementById("deal-form");
+    if (!form) return;
+    let counter = false, accept = 0, total = 0;
+    form.querySelectorAll(".deal-part").forEach((part) => {
+      const pick = part.querySelector("input[type=radio]:checked").value;
+      const box = part.querySelector(".deal-counter");
+      if (box) box.hidden = pick !== "counter";
+      total++;
+      if (pick === "counter") counter = true;
+      if (pick === "accept") accept++;
+    });
+    const hint = form.querySelector("#deal-outcome"), btn = form.querySelector("#deal-submit");
+    if (counter) { hint.textContent = "↔ This sends a counter-offer. It's then their turn."; btn.textContent = "Send counter-offer ↔"; }
+    else if (!accept) { hint.textContent = "✖ Everything is declined, so the deal ends."; btn.textContent = "End the deal"; }
+    else { hint.textContent = (accept < total ? "🤝 The deal is agreed with the parts you accepted." : "🤝 You're agreeing to everything."); btn.textContent = "Agree to the deal 🤝"; }
+  }
+  document.addEventListener("change", (e) => { if (e.target.closest("#deal-form")) dealOutcome(); });
+  // The form is swapped live when the other person answers: set up the fresh copy (only when it really is new).
+  let lastForm = null;
+  const refresh = () => { const f = document.getElementById("deal-form"); if (f !== lastForm) { lastForm = f; dealOutcome(); } };
+  new MutationObserver(refresh).observe(document.querySelector(".deal-room"), { childList: true, subtree: true });
+  refresh();
+</script>
+{% endblock %}

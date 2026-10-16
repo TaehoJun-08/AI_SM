@@ -411,7 +411,7 @@ dialog.modal-card::backdrop { background: rgba(20, 8, 50, .6); backdrop-filter: 
 
 .srv-rail { width: 76px; flex-shrink: 0; background: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 0; overflow-y: auto; scrollbar-width: none; }
 .rail-sep { width: 32px; height: 2px; background: rgba(255, 255, 255, .25); border-radius: 1px; }
-.rail-btn { position: relative; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--c, rgba(255, 255, 255, .16)); color: #fff !important; font-weight: 700; text-decoration: none; font-size: 1.05rem; border: 0; transition: border-radius .2s, transform .2s, box-shadow .2s; flex-shrink: 0; cursor: pointer; }
+.rail-btn { position: relative; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--c, rgba(255, 255, 255, .16)); color: #fff !important; font-weight: 700; text-decoration: none; font-size: 1.05rem; border: 0; transition: border-radius .2s, transform .2s, box-shadow .2s; flex-shrink: 0; cursor: pointer; overflow: hidden; }
 .rail-btn:hover, .rail-btn.active { border-radius: 16px; transform: translateY(-2px); box-shadow: 0 0 18px rgba(255, 255, 255, .35); }
 .rail-btn.home { background: var(--grad-d); font-size: 1.4rem; }
 .rail-btn.add { background: rgba(255, 255, 255, .14); font-size: 1.6rem; font-weight: 400; }
@@ -482,7 +482,10 @@ dialog.modal-card::backdrop { background: rgba(20, 8, 50, .6); backdrop-filter: 
 .srv-card.explore { display: flex; align-items: center; gap: 14px; transition: transform .25s, box-shadow .25s; }
 .srv-card.explore:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
 .srv-explore { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-top: 16px; }
-.srv-icon { width: 52px; height: 52px; border-radius: 18px; background: var(--c, #7c3aed); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 0 16px var(--c, #7c3aed); }
+.srv-icon { width: 52px; height: 52px; border-radius: 18px; background: var(--c, #7c3aed); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 0 16px var(--c, #7c3aed); overflow: hidden; }
+.srv-icon img, .rail-btn img, .dc-tile-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.srv-icon.xl { width: 140px; height: 140px; border-radius: 32px; font-size: 3rem; }
+@media (max-width: 700px) { .srv-icon.xl { width: 96px; height: 96px; font-size: 2rem; } }
 
 .discord-page label { display: block; color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; margin: 14px 0 6px; letter-spacing: .06em; }
 .discord-page input:not([type=checkbox]):not([type=color]), .discord-page select, .discord-page textarea {
@@ -1126,3 +1129,76 @@ a.p-item:hover { border-color: var(--a1); }
 @media (prefers-reduced-motion: reduce) {
   .app-main, #feed > .post, .stories .story, .sk, .tour-spot, .tour-card.in { animation: none; }
 }
+
+/* =====================================================================
+   Sponsorship kinds + the deal room
+   ===================================================================== */
+
+/* ---------- badges on posts ---------- */
+.kind-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.kb { font-size: .72rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--raised); color: var(--text); border: 1px solid var(--line); }
+.kb-money { background: rgba(245, 158, 11, .16); border-color: rgba(245, 158, 11, .4); }
+.kb-pilot { background: rgba(16, 185, 129, .16); border-color: rgba(16, 185, 129, .4); }
+.kb-goods { background: rgba(14, 165, 233, .16); border-color: rgba(14, 165, 233, .4); }
+.offer-counter { background: var(--grad); color: #fff !important; box-shadow: 0 0 14px rgba(236, 72, 153, .45); text-decoration: none; animation: counter-glow 2s ease-in-out infinite; }
+@keyframes counter-glow { 50% { box-shadow: 0 0 22px rgba(236, 72, 153, .75); } }
+
+/* ---------- choosing kinds in the project form ---------- */
+.kind-pick { display: grid; gap: 8px; }
+.kind-opt { cursor: pointer; }
+.kind-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.kind-opt > span { display: grid; grid-template-columns: 38px 1fr; column-gap: 12px; align-items: center; padding: 10px 14px; border-radius: 1rem; background: var(--input); border: 1.5px solid var(--line); transition: border-color .2s, background .2s, transform .2s, box-shadow .2s; }
+.kind-opt i { grid-row: span 2; font-style: normal; font-size: 1.5rem; text-align: center; }
+.kind-opt small { color: var(--muted); }
+.kind-opt:hover > span { transform: translateY(-2px); }
+.kind-opt input:checked + span { border-color: var(--a1); background: var(--raised); box-shadow: 0 0 0 3px rgba(124, 58, 237, .18), var(--shadow); }
+.kind-opt input:focus-visible + span { outline: 2px solid var(--a1); outline-offset: 2px; }
+
+/* ---------- the sponsor dialog ---------- */
+.kind-box { border: 1.5px solid var(--line); border-radius: 1rem; padding: 10px 14px; margin-bottom: 8px; background: var(--input); transition: border-color .2s, box-shadow .2s; }
+.kind-box[hidden] { display: none; }
+.kind-box.open { border-color: var(--a1); box-shadow: 0 0 0 3px rgba(124, 58, 237, .15); }
+.kind-row { display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; }
+.kind-row input { width: 18px; height: 18px; accent-color: var(--a1); }
+.kind-fields { display: none; margin-top: 8px; }
+.kind-box.open .kind-fields { display: block; animation: page-in .3s both; }
+.kind-box.single .kind-row input { display: none; }
+
+/* ---------- deal room ---------- */
+.deal-head { display: flex; align-items: center; gap: 14px; margin: 14px 0 18px; padding: 14px 16px; border-radius: 1.4rem; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
+.deal-now { padding: 16px 18px; border-radius: 1.4rem; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.deal-now.agreed { border-color: rgba(16, 185, 129, .6); box-shadow: var(--shadow), 0 0 28px rgba(16, 185, 129, .25); }
+.deal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dchip { font-weight: 700; font-size: .9rem; padding: 6px 14px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); }
+.dchip.money { background: rgba(245, 158, 11, .18); border-color: rgba(245, 158, 11, .45); }
+.dchip.goods { background: rgba(14, 165, 233, .18); border-color: rgba(14, 165, 233, .45); }
+.dchip.pilot { background: rgba(16, 185, 129, .18); border-color: rgba(16, 185, 129, .45); }
+.deal-timeline { position: relative; padding-left: 6px; }
+.deal-timeline::before { content: ""; position: absolute; left: 21px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(var(--a1), var(--a2), transparent); opacity: .5; }
+.round { display: flex; gap: 14px; margin-bottom: 14px; animation: card-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+.round-dot { flex: none; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--card-solid); border: 2px solid var(--a1); font-size: .95rem; }
+.round-accept .round-dot { border-color: #10b981; box-shadow: 0 0 14px rgba(16, 185, 129, .6); }
+.round-decline .round-dot, .round-withdraw .round-dot { border-color: #e11d48; }
+.round-counter .round-dot { border-color: var(--a2); box-shadow: 0 0 14px rgba(236, 72, 153, .5); }
+.round-body { flex: 1; padding: 10px 14px; border-radius: 1.1rem; background: var(--card); border: 1px solid var(--line); }
+.round-body .deal-chips { margin-top: 6px; }
+.round-sum { margin-top: 6px; font-size: .85rem; color: var(--text-2); }
+.round-note { margin-top: 6px; font-style: italic; color: var(--text-2); }
+.deal-part { padding: 12px 14px; border-radius: 1.1rem; background: var(--card); border: 1px solid var(--line); margin-bottom: 10px; }
+.deal-part-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg label { flex: 1; min-width: 90px; margin: 0; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; text-align: center; padding: 8px 10px; border-radius: 999px; font-weight: 700; font-size: .85rem; background: var(--input); border: 1.5px solid var(--line); transition: all .2s; }
+.seg input:checked + span { color: #fff; border-color: transparent; background: var(--grad); box-shadow: 0 .3rem .8rem rgba(219, 39, 119, .3); }
+.seg input[value=decline]:checked + span { background: #e11d48; }
+.seg input[value=accept]:checked + span { background: linear-gradient(90deg, #10b981, #0ea5e9); }
+.deal-counter { margin-top: 8px; }
+.deal-outcome { font-size: .9rem; font-weight: 600; color: var(--text-2); margin-bottom: 10px; min-height: 1.3em; }
+.deal-wait { margin-top: 22px; padding: 18px; border-radius: 1.4rem; text-align: center; background: var(--card); border: 1px dashed var(--line); color: var(--text-2); }
+.deal-wait.done { border-style: solid; border-color: rgba(16, 185, 129, .5); }
+.wait-dots { display: inline-flex; gap: 4px; margin-right: 8px; vertical-align: middle; }
+.wait-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--a2); animation: wait-bounce 1.2s ease-in-out infinite; }
+.wait-dots i:nth-child(2) { animation-delay: .15s; } .wait-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes wait-bounce { 0%, 80%, 100% { transform: scale(.6); opacity: .5; } 40% { transform: scale(1.1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .offer-counter, .round, .wait-dots i { animation: none; } }

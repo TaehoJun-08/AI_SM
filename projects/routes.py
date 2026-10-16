@@ -11,6 +11,7 @@ DOMAINS = ["AI / ML", "HealthTech", "EdTech", "FinTech", "AgriTech",
            "CleanTech", "Social Impact", "Other"]
 STAGES = {"idea": "Idea", "prototype": "Prototype", "mvp": "MVP", "growth": "Growth"}
 MAX_FUNDING = 10_000_000_000  # ₹1,000 crore
+KINDS = ("money", "goods", "pilot")   # the kinds of sponsorship a project can accept
 
 
 def show_form(form=None, project=None):
@@ -18,9 +19,15 @@ def show_form(form=None, project=None):
     if project is not None:
         media = get_db().execute("SELECT * FROM post_media WHERE post_id = ? ORDER BY position, id",
                                  (project["id"],)).fetchall()
+    if request.method == "POST":
+        kinds = {k: bool(request.form.get("kind_" + k)) for k in KINDS}
+    elif project is not None:
+        kinds = {k: bool(project["accepts_" + k]) for k in KINDS}
+    else:
+        kinds = {"money": True, "goods": False, "pilot": False}
     return render_template("projects/new.html", domains=DOMAINS, stages=STAGES,
                            form=form or {}, project=project, media=media,
-                           max_media=MAX_PER_POST)
+                           max_media=MAX_PER_POST, kinds=kinds)
 
 
 def validate(form):
@@ -33,6 +40,11 @@ def validate(form):
         "stage": form.get("stage", ""),
         "funding_needed": form.get("funding_needed", "").strip(),
     }
+    accepts = {"accepts_" + k: 1 if form.get("kind_" + k) else 0 for k in KINDS}
+    if not any(accepts.values()):
+        return None, "Choose at least one kind of sponsorship you'd like."
+    if not accepts["accepts_money"]:
+        data["funding_needed"] = "1"      # no money wanted: the goal is not shown anywhere
     if not all(data.values()):
         return None, "Please fill in every field."
     if data["domain"] not in DOMAINS or data["stage"] not in STAGES:
@@ -45,6 +57,7 @@ def validate(form):
     if len(data["summary"]) > 160:
         return None, "Keep the summary to 160 characters or less."
     data["funding_needed"] = int(data["funding_needed"])
+    data.update(accepts)
     return data, None
 
 
@@ -77,9 +90,10 @@ def new():
     db = get_db()
     cur = db.execute(
         """INSERT INTO projects
-           (innovator_id, title, summary, description, domain, stage, funding_needed)
+           (innovator_id, title, summary, description, domain, stage, funding_needed,
+            accepts_money, accepts_goods, accepts_pilot)
            VALUES (:innovator_id, :title, :summary, :description,
-                   :domain, :stage, :funding_needed)""",
+                   :domain, :stage, :funding_needed, :accepts_money, :accepts_goods, :accepts_pilot)""",
         data,
     )
     add_media(db, cur.lastrowid, saved)
@@ -147,7 +161,8 @@ def edit(project_id):
     db.execute(
         """UPDATE projects
            SET title = :title, summary = :summary, description = :description,
-               domain = :domain, stage = :stage, funding_needed = :funding_needed
+               domain = :domain, stage = :stage, funding_needed = :funding_needed,
+               accepts_money = :accepts_money, accepts_goods = :accepts_goods, accepts_pilot = :accepts_pilot
            WHERE id = :id""",
         data,
     )
@@ -158,7 +173,8 @@ def edit(project_id):
     for media_id in removed:
         delete_media(existing[media_id])
     from servers import projectlink
-    projectlink.on_stage_change(db, project_id, project["stage"], data["stage"], project["funding_needed"], data["funding_needed"])
+    projectlink.on_stage_change(db, project_id, project["stage"], data["stage"], project["funding_needed"],
+                                data["funding_needed"] if data["accepts_money"] else project["funding_needed"])
     live.to_feed("post_changed", {"id": project_id})
     live.touch(["posts"])
     flash("Project updated. ✨")

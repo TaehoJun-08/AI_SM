@@ -116,6 +116,29 @@ def needs_withdrawn_status(conn):
     return row is not None and "withdrawn" not in row[0]
 
 
+def add_sponsorship_kinds(conn):
+    """Projects say which kinds of sponsorship they accept (money / goods / free sponsor), and an offer is a
+    bundle of those parts that both people can negotiate. Old rows become plain money projects and offers."""
+    wanted = {
+        "projects": [("accepts_money", "INTEGER NOT NULL DEFAULT 1"), ("accepts_goods", "INTEGER NOT NULL DEFAULT 0"),
+                     ("accepts_pilot", "INTEGER NOT NULL DEFAULT 0")],
+        "interests": [("goods", "TEXT NOT NULL DEFAULT ''"), ("pilot", "INTEGER NOT NULL DEFAULT 0"),
+                      ("turn", "TEXT NOT NULL DEFAULT 'creator'"), ("last_actor", "INTEGER")],
+    }
+    for table, columns in wanted.items():
+        have = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
+        for name, definition in columns:
+            if have and name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
+
+def add_server_avatar(conn):
+    """Servers can have a photo (like a profile photo) instead of just an emoji icon + colour."""
+    have = [row[1] for row in conn.execute("PRAGMA table_info(servers)")]
+    if have and "avatar" not in have:
+        conn.execute("ALTER TABLE servers ADD COLUMN avatar TEXT")
+
+
 def add_reply_edit(conn):
     """Chat messages can be replies and can be edited: two new columns on both chat tables."""
     for table in ("dm_messages", "server_messages"):
@@ -208,6 +231,8 @@ def init_db():
                         SELECT id, sponsor_id, project_id, status, amount, message, created_at FROM interests_old""")
         conn.execute("DROP TABLE interests_old")
     add_reply_edit(conn)
+    add_sponsorship_kinds(conn)
+    add_server_avatar(conn)
     conn.commit()
     conn.close()
     print("Database ready at", DB_PATH)

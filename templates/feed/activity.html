@@ -12,17 +12,20 @@
       {{ avatar(o.full_name, o.avatar, href=url_for('profiles.public', username=o.username)) }}
       <div class="flex-grow-1">
         <div><a class="post-user" href="{{ url_for('profiles.public', username=o.username) }}">{{ o.username }}</a>
-          offered <b>₹{{ '{:,}'.format(o.amount or 0) }}</b> for <b>{{ o.title }}</b></div>
+          {{ 'offered' if o.status != 'accepted' else 'is sponsoring with' }} <b>{{ terms_text(o) }}</b> for <b>{{ o.title }}</b></div>
         {% if o.message %}<div class="muted">“{{ o.message }}”</div>{% endif %}
         {% if o.status == 'accepted' %}<small class="muted">Contact: {{ o.email }}</small>{% endif %}
       </div>
       {% if o.status == 'pending' %}
-        <form method="POST" action="{{ url_for('interests.respond', interest_id=o.id, action='accept') }}">
-          <button class="btn btn-primary btn-sm">Accept</button></form>
-        <form method="POST" action="{{ url_for('interests.respond', interest_id=o.id, action='decline') }}">
-          <button class="btn btn-outline-secondary btn-sm">Decline</button></form>
+        {% if o.turn == 'creator' %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('deals.room', interest_id=o.id) }}">Review offer</a>
+        {% else %}
+          <span class="offer-state offer-pending">↔ Waiting for @{{ o.username }}</span>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('deals.room', interest_id=o.id) }}">Open deal</a>
+        {% endif %}
       {% else %}
         <span class="offer-state offer-{{ o.status }}">{{ o.status|capitalize }}</span>
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('deals.room', interest_id=o.id) }}">Deal</a>
       {% endif %}
     </div>
   {% else %}
@@ -47,13 +50,19 @@
   {% for o in sent %}
     <div class="row-card">
       <div class="flex-grow-1">
-        ₹{{ '{:,}'.format(o.amount or 0) }} to <a href="{{ url_for('feed.post', post_id=o.post_id) }}"><b>{{ o.title }}</b></a>
+        {{ terms_text(o) }} to <a href="{{ url_for('feed.post', post_id=o.post_id) }}"><b>{{ o.title }}</b></a>
         by @{{ o.username }}
       </div>
-      <span class="offer-state offer-{{ o.status }}">{{ o.status|capitalize }}</span>
-      {% if o.status in ['pending', 'accepted'] %}
+      {% if o.status == 'pending' and o.turn == 'sponsor' %}
+        <a class="offer-state offer-counter" href="{{ url_for('deals.room', interest_id=o.id) }}">↔ Counter-offer · your turn</a>
+      {% else %}
+        <span class="offer-state offer-{{ o.status }}">{{ o.status|capitalize }}</span>
+      {% endif %}
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('deals.room', interest_id=o.id) }}">Deal</a>
+      {% if o.status in ['pending', 'accepted'] and not (o.status == 'pending' and o.turn == 'sponsor') %}
         <button type="button" class="btn btn-secondary btn-sm" data-edit-offer="{{ o.id }}" data-title="{{ o.title }}"
-                data-amount="{{ o.amount }}" data-message="{{ o.message }}">Edit</button>
+                data-amount="{{ o.amount or '' }}" data-goods="{{ o.goods }}" data-pilot="{{ o.pilot }}" data-message="{{ o.message }}"
+                data-ok-money="{{ o.accepts_money }}" data-ok-goods="{{ o.accepts_goods }}" data-ok-pilot="{{ o.accepts_pilot }}">Edit</button>
       {% endif %}
       {% if o.status in ['pending', 'accepted'] %}
         <form method="POST" action="{{ url_for('interests.withdraw', interest_id=o.id) }}"

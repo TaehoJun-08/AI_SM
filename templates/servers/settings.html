@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% from "_avatar.html" import avatar %}
+{% from "servers/_icon.html" import srv_icon %}
 {% block title %}Server Settings · {{ server['name'] }}{% endblock %}
 {% block body_class %}discord-page{% endblock %}
 {% block main %}
@@ -36,12 +37,24 @@
     {# ---------------- OVERVIEW ---------------- #}
     {% if tab == 'overview' %}
       <h3>Server Overview</h3>
+      <div class="photo-row">
+        <span class="srv-icon xl" style="--c: {{ server['color'] }}">{{ srv_icon(server) }}</span>
+        <div>
+          <p class="srv-muted mb-2">Your server's photo shows in the rail, invites and Explore. We crop it to a square.</p>
+          <form method="POST" action="{{ url_for('servers.save_server_photo', server_id=sid) }}" enctype="multipart/form-data" class="d-inline">
+            <label class="srv-btn small">Upload photo
+              <input type="file" name="photo" accept="image/*" hidden onchange="this.form.submit()"></label>
+          </form>
+          {% if server['avatar'] %}
+            <form method="POST" action="{{ url_for('servers.save_server_photo', server_id=sid) }}" class="d-inline">
+              <button name="remove" value="1" class="srv-btn small ghost">Remove</button></form>
+          {% endif %}
+        </div>
+      </div>
       <form method="POST" action="{{ url_for('servers.save_overview', server_id=sid) }}" class="set-form">
         <div class="srv-row">
           <div class="grow"><label>Server name</label>
             <input name="name" value="{{ server['name'] }}" maxlength="40" required></div>
-          <div><label>Icon (emoji)</label><input name="icon" value="{{ server['icon'] }}" maxlength="4" style="width: 90px"></div>
-          <div><label>Colour</label>{{ color_input(server['color']) }}</div>
         </div>
         <label>Description</label>
         <input name="description" value="{{ server['description'] }}" maxlength="200">

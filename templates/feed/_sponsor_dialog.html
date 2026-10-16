@@ -5,19 +5,35 @@
       <h5 class="mb-0" id="sponsor-heading">Sponsor this project</h5>
       <button type="button" class="icon-btn" data-close-dialog aria-label="Close">{{ icon('x', 20) }}</button>
     </div>
-    <p class="muted mb-3" id="sponsor-title"></p>
-    <label class="form-label fw-semibold" for="sponsor-amount">How much would you like to give?</label>
-    <div class="input-group mb-3">
-      <span class="input-group-text">₹</span>
-      <input id="sponsor-amount" name="amount" type="number" min="1" step="1" class="form-control"
-             placeholder="50000" required>
+    <p class="muted mb-2" id="sponsor-title"></p>
+    <p class="muted small mb-3" id="sponsor-hint">Pick one or more ways to back this project.</p>
+
+    <div class="kind-box" data-kind="money">
+      <label class="kind-row"><input type="checkbox" name="use_money" value="1"><b>💰 Money</b></label>
+      <div class="kind-fields">
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input id="sponsor-amount" name="amount" type="number" min="1" step="1" class="form-control" placeholder="50000">
+        </div>
+      </div>
     </div>
-    <label class="form-label fw-semibold" for="sponsor-message">Message <span class="muted">(optional)</span></label>
+    <div class="kind-box" data-kind="goods">
+      <label class="kind-row"><input type="checkbox" name="use_goods" value="1"><b>🎁 Goods or services</b></label>
+      <div class="kind-fields">
+        <input id="sponsor-goods" name="goods" maxlength="200" class="form-control" placeholder="e.g. 6 months of free hosting">
+      </div>
+    </div>
+    <div class="kind-box" data-kind="pilot">
+      <label class="kind-row"><input type="checkbox" name="use_pilot" value="1"><b>🌱 Free sponsor</b></label>
+      <div class="kind-fields"><small class="muted">No money: I'll use the product and share honest feedback. Tell them how in the message below.</small></div>
+    </div>
+
+    <label class="form-label fw-semibold mt-3" for="sponsor-message">Message <span class="muted">(optional)</span></label>
     <textarea id="sponsor-message" name="message" rows="3" maxlength="300" class="form-control mb-3"
               placeholder="Why do you want to back this?"></textarea>
     <button class="btn btn-primary w-100" id="sponsor-submit">Send offer</button>
     <button type="submit" id="sponsor-withdraw" class="btn btn-outline-danger w-100 mt-2" hidden formnovalidate
             onclick="return confirm('Withdraw this offer? If the owner already accepted it, they will be told in your chat.')">Withdraw my offer</button>
-    <p class="muted small mt-2 mb-0">The owner can accept or decline. If they accept, a chat opens between you two.</p>
+    <p class="muted small mt-2 mb-0">The owner can accept, decline or counter each part. If you agree, a chat opens between you two.</p>
   </form>
 </dialog>

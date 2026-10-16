@@ -38,9 +38,13 @@ def status(db, server):
         return None
     got = raised(db, p["id"])
     sponsors = db.execute("SELECT COUNT(*) FROM interests WHERE project_id = ? AND status = 'accepted'", (p["id"],)).fetchone()[0]
+    free = db.execute("SELECT COUNT(*) FROM interests WHERE project_id = ? AND status = 'accepted' AND pilot = 1", (p["id"],)).fetchone()[0]
+    import deals
+    wants = " · ".join(deals.LABEL[k] for k in deals.kinds_of(p))
     return {"id": p["id"], "title": p["title"], "owner": p["username"], "stage": p["stage"], "stage_i": STAGES.index(p["stage"]),
             "steps": [STAGE_LABEL[s] for s in STAGES], "ask": p["funding_needed"], "raised": got, "sponsors": sponsors,
-            "percent": min(100, round(got * 100 / p["funding_needed"])) if p["funding_needed"] else 0,
+            "money": bool(p["accepts_money"]), "free": free, "wants": wants,
+            "percent": min(100, round(got * 100 / p["funding_needed"])) if p["funding_needed"] and p["accepts_money"] else 0,
             "milestones": milestones(db, p["id"], got)}
 
 
@@ -52,11 +56,11 @@ def status_embed(db, server):
     return {"kind": "project", "title": f"Status: {s['title']}", "url": f"/p/{s['id']}", "color": STAGE_COLOR[s["stage"]],
             "description": steps,
             "fields": [{"name": "Owner", "value": f"@{s['owner']}", "inline": True},
-                       {"name": "Sponsors", "value": str(s["sponsors"]), "inline": True},
-                       {"name": "Asking", "value": f"₹{s['ask']:,}", "inline": True}]
+                       {"name": "Sponsors", "value": str(s["sponsors"]) + (f" ({s['free']} free)" if s["free"] else ""), "inline": True},
+                       {"name": "Asking" if s["money"] else "Wants", "value": f"₹{s['ask']:,}" if s["money"] else s["wants"], "inline": True}]
                       + ([{"name": "Milestones", "value": " · ".join(("✅ " if m["state"] != "open" else "⬜ ") + m["title"] for m in s["milestones"])}]
                          if s["milestones"] else []),
-            "progress": {"value": s["raised"], "goal": s["ask"], "label": f"₹{s['raised']:,} of ₹{s['ask']:,} sponsored"},
+            **({"progress": {"value": s["raised"], "goal": s["ask"], "label": f"₹{s['raised']:,} of ₹{s['ask']:,} sponsored"}} if s["money"] else {}),
             "footer": "Open the project post to sponsor or comment"}
 
 

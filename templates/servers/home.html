@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "servers/_icon.html" import srv_icon %}
 {% block title %}Servers · Sponsorship Matchmaker{% endblock %}
 {% block body_class %}discord-page{% endblock %}
 
@@ -32,18 +33,8 @@
 
       <section data-step="create">
         <h3>Customise your server</h3>
-        <p class="dc-sub">Give your new server a personality with a name and an icon. You can always change it later.</p>
+        <p class="dc-sub">Give your new server a name. You can add a photo for it afterwards in Server Settings.</p>
         <form method="POST" action="{{ url_for('servers.create') }}">
-          <div class="dc-row">
-            <div class="dc-pick">
-              <label>Icon</label>
-              <input name="icon" maxlength="4" placeholder="🌱" class="dc-emoji">
-            </div>
-            <div class="dc-pick">
-              <label>Colour</label>
-              <input name="color" type="color" value="#5865f2" class="dc-color">
-            </div>
-          </div>
           <label>Server name</label>
           <input name="name" maxlength="40" placeholder="e.g. Green Farm Labs" required>
           <label>Description</label>
@@ -83,21 +74,21 @@
         <div class="dc-filters">
           <select id="f-stage"><option value="">Any stage</option><option value="idea">Idea</option><option value="prototype">Prototype</option><option value="mvp">MVP</option><option value="growth">Growth</option></select>
           <select id="f-domain"><option value="">Any domain</option>{% for d in domains %}<option>{{ d }}</option>{% endfor %}</select>
-          <select id="f-fund"><option value="">Any funding</option><option value="needs">Still needs money</option><option value="funded">Fully funded</option></select>
+          <select id="f-fund"><option value="">Any funding</option><option value="needs">Still needs money</option><option value="funded">Fully funded</option><option value="free">Free sponsors welcome</option></select>
         </div>
         <div class="dc-grid">
           {% for s in projects %}
             {% set pct = [100, (s['raised'] * 100 // s['funding_needed'])]|min %}
             <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile proj-tile"
-                  data-stage="{{ s['stage'] }}" data-domain="{{ s['domain'] }}" data-fund="{{ 'funded' if pct >= 100 else 'needs' }}">
+                  data-stage="{{ s['stage'] }}" data-domain="{{ s['domain'] }}" data-fund="{{ 'free' if (not s['accepts_money'] or s['accepts_pilot']) and pct < 100 else ('funded' if pct >= 100 else 'needs') }}">
               <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
               <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">💡</span>
               <span class="dc-stage">{{ s['stage'] }} · {{ s['domain'] }}</span>
               <b>{{ s['title'] }}</b>
               <p>{{ s['description'] or 'No summary yet.' }}</p>
-              <div class="dc-mini"><i style="width: {{ pct }}%"></i></div>
+              {% if s['accepts_money'] %}<div class="dc-mini"><i style="width: {{ pct }}%"></i></div>{% endif %}
               <div class="dc-tile-foot">
-                <small>₹{{ '{:,}'.format(s['raised']) }} of ₹{{ '{:,}'.format(s['funding_needed']) }} · {{ s['members'] }} 👥</small>
+                <small>{% if s['accepts_money'] %}₹{{ '{:,}'.format(s['raised']) }} of ₹{{ '{:,}'.format(s['funding_needed']) }}{% else %}🌱 Free sponsors{% endif %} · {{ s['members'] }} 👥</small>
                 <button class="dc-btn small">View</button>
               </div>
             </form>
@@ -113,7 +104,7 @@
         {% for s in explore %}
           <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile">
             <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
-            <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">{{ s['icon'] or s['name'][:2]|upper }}</span>
+            <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">{{ srv_icon(s) }}</span>
             <b>{{ s['name'] }}</b>
             <p>{{ s['description'] or 'No description yet.' }}</p>
             <div class="dc-tile-foot">
