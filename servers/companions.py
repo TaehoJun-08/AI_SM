@@ -230,16 +230,26 @@ def on_message(db, server, channel, user_id):
             post_message(db, channel, bot["user_id"], f"✨ @{live.username(db, user_id)} reached **level {level_of(before + gain)}**!", silent=True)
 
 
-def on_sponsorship(db, project_id, sponsor_id, amount):
-    """Scout cheers in the server of THIS project only (queued until that server exists)."""
-    project = db.execute("SELECT title, innovator_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+def on_sponsorship(db, project_id, sponsor_id, terms):
+    """Scout cheers in the server of THIS project only (queued until that server exists). The card carries the
+    money raised so far (not just this offer), so it always shows the current total, not a stale snapshot."""
+    project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
     if project is None:
         return
     from servers import projectlink
     projectlink.on_sponsorship(db, project_id, sponsor_id)
-    projectlink.project_post(db, project_id,
-                             f"💸 @{live.username(db, sponsor_id)} just backed “{project['title']}” by "
-                             f"@{live.username(db, project['innovator_id'])} with ₹{(amount or 0):,}!")
+    import deals
+    who, owner = live.username(db, sponsor_id), live.username(db, project["innovator_id"])
+    if terms["money"] or terms["goods"]:
+        title = f"💸 @{who} just backed “{project['title']}” by @{owner} with {deals.describe(terms)}!"
+    else:
+        title = f"🌱 @{who} is now a free sponsor of “{project['title']}” by @{owner}. They'll use it and share feedback!"
+    embed = {"kind": "project", "title": title, "color": "#10b981", "url": f"/p/{project_id}"}
+    if project["accepts_money"]:
+        raised = projectlink.raised(db, project_id)
+        embed["progress"] = {"value": raised, "goal": project["funding_needed"],
+                             "label": f"₹{raised:,} of ₹{project['funding_needed']:,} sponsored"}
+    projectlink.project_post(db, project_id, embed=embed)
 
 
 def level_of(xp):
@@ -431,13 +441,19 @@ def cmd_pitch(ctx):
     if project is None:
         return whisper(ctx, "I couldn't find a project of yours. Post one on the feed first, or use /pitch <post id>.")
     raised = raised_for(db, project["id"])
-    say(ctx, embed={"kind": "project", "title": project["title"], "description": project["summary"], "color": "#0ea5e9",
-                    "url": f"/p/{project['id']}",
-                    "fields": [{"name": "Domain", "value": project["domain"], "inline": True},
-                               {"name": "Stage", "value": project["stage"].title(), "inline": True},
-                               {"name": "Asking", "value": f"₹{project['funding_needed']:,}", "inline": True}],
-                    "progress": {"value": raised, "goal": project["funding_needed"], "label": f"₹{raised:,} sponsored of ₹{project['funding_needed']:,}"},
-                    "footer": f"by @{ctx.username} · open the post to sponsor"})
+    import deals
+    wants = " · ".join(deals.LABEL[k] for k in deals.kinds_of(project))
+    embed = {"kind": "project", "title": project["title"], "description": project["summary"], "color": "#0ea5e9",
+             "url": f"/p/{project['id']}",
+             "fields": [{"name": "Domain", "value": project["domain"], "inline": True},
+                        {"name": "Stage", "value": project["stage"].title(), "inline": True},
+                        {"name": "Asking" if project["accepts_money"] else "Wants", "inline": True,
+                         "value": f"₹{project['funding_needed']:,}" if project["accepts_money"] else wants}],
+             "footer": f"by @{ctx.username} · open the post to sponsor"}
+    if project["accepts_money"]:
+        embed["progress"] = {"value": raised, "goal": project["funding_needed"],
+                             "label": f"₹{raised:,} sponsored of ₹{project['funding_needed']:,}"}
+    say(ctx, embed=embed)
 
 
 def cmd_funding(ctx):

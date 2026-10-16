@@ -1,0 +1,6 @@
+{# What kinds of sponsorship a post accepts, plus how many of each it has. Needs: post #}
+<div class="kind-badges">
+  {% if post.accepts_money %}<span class="kb kb-money">💰 Money</span>{% endif %}
+  {% if post.accepts_pilot %}<span class="kb kb-pilot">🌱 Free sponsors{% if post.free_sponsors %} · {{ post.free_sponsors }}{% endif %}</span>{% endif %}
+  {% if post.accepts_goods %}<span class="kb kb-goods">🎁 Goods{% if post.goods_sponsors %} · {{ post.goods_sponsors }}{% endif %}</span>{% endif %}
+</div>

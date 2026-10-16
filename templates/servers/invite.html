@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "servers/_icon.html" import srv_icon %}
 {% block title %}Join {{ server['name'] }}{% endblock %}
 {% block body_class %}discord-page{% endblock %}
 {% block main %}
@@ -8,7 +9,7 @@
   <div class="srv-home gate">
     <div class="srv-card gate-card text-center">
       <p class="srv-muted mb-2">{{ 'You have been invited to join' if code else 'Do you want to join this server?' }}</p>
-      <div class="srv-icon mx-auto" style="--c: {{ server['color'] }}">{{ server['icon'] or server['name'][:2]|upper }}</div>
+      <div class="srv-icon mx-auto" style="--c: {{ server['color'] }}">{{ srv_icon(server) }}</div>
       <h3 class="mt-3">{{ server['name'] }}</h3>
       <p class="srv-muted">{{ server['description'] }}</p>
       <p class="srv-muted">{{ server['members'] }} member{{ '' if server['members'] == 1 else 's' }}</p>

@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import secrets
 from datetime import datetime
@@ -38,6 +39,7 @@ def announce_changes(response):
 
 COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 CHANNEL_NAME = re.compile(r"[a-z0-9_-]{1,30}")
+PALETTE = ["#5865f2", "#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6"]
 KINDS = {"text": "# Text", "announcement": "📢 Announcement", "voice": "🔊 Voice room", "forum": "💡 Pitch board"}
 TAB_NAMES = {"overview": "Overview", "roles": "Roles & powers", "channels": "Channels", "members": "Members",
              "companions": "Companions", "emoji": "Emoji", "invite": "Invites", "safety": "Safety", "audit": "Audit log"}
@@ -139,7 +141,7 @@ def back(server_id, tab):
 
 def my_servers(user_id):
     return get_db().execute(
-        """SELECT s.id, s.name, s.icon, s.color FROM servers s
+        """SELECT s.id, s.name, s.icon, s.avatar, s.color FROM servers s
            JOIN server_members m ON m.server_id = s.id
            WHERE m.user_id = ? ORDER BY m.joined_at, s.id""", (user_id,)).fetchall()
 
@@ -200,7 +202,7 @@ def home():
              AND s.project_id IS NULL
            ORDER BY members DESC, s.id DESC LIMIT 24""", (me, me)).fetchall()
     projects = get_db().execute(
-        """SELECT s.id, s.color, s.description, p.id AS pid, p.title, p.stage, p.domain, p.funding_needed,
+        """SELECT s.id, s.color, s.description, p.id AS pid, p.title, p.stage, p.domain, p.funding_needed, p.accepts_money, p.accepts_pilot,
              (SELECT COUNT(*) FROM server_members sm JOIN users hu ON hu.id = sm.user_id AND hu.is_bot = 0 WHERE sm.server_id = s.id) AS members,
              (SELECT COALESCE(SUM(amount), 0) FROM interests WHERE project_id = p.id AND status = 'accepted') AS raised
            FROM servers s JOIN projects p ON p.id = s.project_id
@@ -305,8 +307,7 @@ def create():
     if not 1 <= len(name) <= 40:
         flash("Give your server a name (up to 40 characters).")
         return redirect(url_for("servers.home"))
-    sid = create_server(session["user_id"], name, request.form.get("icon", "").strip()[:4],
-                        valid_color(request.form.get("color"), "#5865f2"),
+    sid = create_server(session["user_id"], name, "", random.choice(PALETTE),
                         request.form.get("description", "").strip()[:200],
                         0 if request.form.get("private") else 1)
     flash(f"{name} is ready. Make it yours in Server Settings. ✨")
@@ -500,17 +501,47 @@ def save_overview(server_id):
         flash("Server names are 1-40 characters.")
         return back(server_id, "overview")
     db = get_db()
-    db.execute("""UPDATE servers SET name = ?, icon = ?, color = ?, description = ?, is_public = ?,
+    db.execute("""UPDATE servers SET name = ?, description = ?, is_public = ?,
                   goal_title = ?, goal_amount = ? WHERE id = ?""",
-               (name, request.form.get("icon", "").strip()[:4],
-                valid_color(request.form.get("color"), m["server"]["color"]),
-                request.form.get("description", "").strip()[:200],
+               (name, request.form.get("description", "").strip()[:200],
                 1 if request.form.get("is_public") else 0,
                 request.form.get("goal_title", "").strip()[:60],
                 max(0, request.form.get("goal_amount", 0, type=int) or 0), server_id))
     audit(server_id, "server.update", name)
     db.commit()
     flash("Server updated. ✨")
+    return back(server_id, "overview")
+
+
+@servers_bp.route("/<int:server_id>/photo", methods=["POST"])
+@login_required
+def save_server_photo(server_id):
+    from media import save_avatar, delete_media
+    m = need(server_id, "manage_server")
+    db = get_db()
+    if request.form.get("remove"):
+        old = m["server"]["avatar"]
+        db.execute("UPDATE servers SET avatar = NULL WHERE id = ?", (server_id,))
+        audit(server_id, "server.photo_removed")
+        db.commit()
+        delete_media(old)
+        flash("Server photo removed.")
+        return back(server_id, "overview")
+    file = request.files.get("photo")
+    if file is None or not file.filename:
+        flash("Choose a picture first.")
+        return back(server_id, "overview")
+    try:
+        path = save_avatar(file)
+    except ValueError as e:
+        flash(str(e))
+        return back(server_id, "overview")
+    old = m["server"]["avatar"]
+    db.execute("UPDATE servers SET avatar = ? WHERE id = ?", (path, server_id))
+    audit(server_id, "server.photo_updated")
+    db.commit()
+    delete_media(old)
+    flash("Looking good! Server photo updated. 📸")
     return back(server_id, "overview")
 
 

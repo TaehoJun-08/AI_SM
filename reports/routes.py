@@ -18,7 +18,7 @@ def project(project_id):
     if p is None:
         abort(404)
     offers = db.execute(
-        """SELECT i.status, i.amount, u.full_name, u.username, u.email
+        """SELECT i.status, i.amount, i.goods, i.pilot, u.full_name, u.username, u.email
            FROM interests i JOIN users u ON u.id = i.sponsor_id
            WHERE i.project_id = ? ORDER BY i.status DESC, i.id""",
         (project_id,),
@@ -29,18 +29,18 @@ def project(project_id):
 
     pdf = Report("Project report")
     pdf.title_block(p["title"], f"{p['domain']}  |  {STAGES[p['stage']]}  |  "
-                                f"{money(p['funding_needed'])} needed")
+                                + (f"{money(p['funding_needed'])} needed" if p["accepts_money"] else "free sponsors welcome"))
     pdf.heading("Pitch")
     pdf.paragraph(p["summary"])
     pdf.heading("Description")
     pdf.paragraph(p["description"])
     pdf.heading("Traction")
-    pdf.paragraph(f"{likes} likes  |  {comments} comments  |  {money(raised)} raised "
-                  f"of {money(p['funding_needed'])}")
+    pdf.paragraph(f"{likes} likes  |  {comments} comments  |  " + (f"{money(raised)} raised of {money(p['funding_needed'])}"
+                  if p["accepts_money"] else f"{sum(1 for o in offers if o['status'] == 'accepted')} sponsors"))
     pdf.heading("Sponsorship offers")
     pdf.data_table(
-        ["Sponsor", "Amount", "Status", "Contact"],
-        [[f"{o['full_name']} (@{o['username']})", money(o["amount"] or 0), STATUS[o["status"]],
+        ["Sponsor", "Offer", "Status", "Contact"],
+        [[f"{o['full_name']} (@{o['username']})", __import__("deals").describe(o).replace("₹", "Rs.").replace("🌱 ", ""), STATUS[o["status"]],
           o["email"] if o["status"] == "accepted" else "-"] for o in offers],
         (60, 35, 35, 60), "Nobody has offered to sponsor this project yet.")
     pdf.paragraph("Owner: " + current_user()["full_name"])

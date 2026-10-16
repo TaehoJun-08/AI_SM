@@ -19,7 +19,13 @@ POST_SELECT = """
       (SELECT status FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_offer,
       (SELECT id FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_offer_id,
       (SELECT amount FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_amount,
-      (SELECT message FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_message
+      (SELECT goods FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_goods,
+      (SELECT pilot FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_pilot,
+      (SELECT turn FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_turn,
+      (SELECT message FROM interests WHERE project_id = p.id AND sponsor_id = :me) AS my_message,
+      (SELECT COUNT(*) FROM interests WHERE project_id = p.id AND status = 'accepted') AS sponsor_count,
+      (SELECT COUNT(*) FROM interests WHERE project_id = p.id AND status = 'accepted' AND pilot = 1) AS free_sponsors,
+      (SELECT COUNT(*) FROM interests WHERE project_id = p.id AND status = 'accepted' AND goods != '') AS goods_sponsors
     FROM projects p JOIN users u ON u.id = p.innovator_id
 """
 
@@ -173,7 +179,7 @@ def activity():
            WHERE p.innovator_id = ?
            ORDER BY (i.status = 'pending') DESC, i.id DESC""", (me,)).fetchall()
     sent = db.execute(
-        """SELECT i.*, p.title, p.id AS post_id, u.username FROM interests i
+        """SELECT i.*, p.title, p.id AS post_id, p.accepts_money, p.accepts_goods, p.accepts_pilot, u.username FROM interests i
            JOIN projects p ON p.id = i.project_id JOIN users u ON u.id = p.innovator_id
            WHERE i.sponsor_id = ? ORDER BY i.id DESC""", (me,)).fetchall()
     events = [dict(r, kind="like") for r in db.execute(

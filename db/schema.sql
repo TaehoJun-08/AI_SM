@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS servers (
     owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
     icon        TEXT    NOT NULL DEFAULT '',
+    avatar      TEXT,
     color       TEXT    NOT NULL DEFAULT '#5865f2',
     description TEXT    NOT NULL DEFAULT '',
     invite_code TEXT    NOT NULL UNIQUE,
@@ -420,3 +421,18 @@ CREATE TABLE IF NOT EXISTS pending_posts (
     created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_pending_posts ON pending_posts (project_id, id);
+
+-- Every step of a sponsorship deal: the offer, each counter, the final agreement. Terms are a snapshot.
+CREATE TABLE IF NOT EXISTS deal_rounds (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    interest_id INTEGER NOT NULL REFERENCES interests(id) ON DELETE CASCADE,
+    actor_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind        TEXT    NOT NULL,
+    amount      INTEGER,
+    goods       TEXT    NOT NULL DEFAULT '',
+    pilot       INTEGER NOT NULL DEFAULT 0,
+    summary     TEXT    NOT NULL DEFAULT '',
+    note        TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_deal_rounds ON deal_rounds (interest_id, id);

@@ -62,10 +62,12 @@ def activity_total(me):
            WHERE p.innovator_id = :me AND c.user_id != :me AND c.created_at > :seen""", args).fetchone()[0]
     offers = db.execute(
         """SELECT COUNT(*) FROM interests i JOIN projects p ON p.id = i.project_id
-           WHERE p.innovator_id = :me AND i.created_at > :seen""", args).fetchone()[0]
+           WHERE p.innovator_id = :me AND (i.created_at > :seen
+                 OR (i.turn = 'creator' AND i.responded_at > :seen AND COALESCE(i.last_actor, 0) != :me))""", args).fetchone()[0]
     answers = db.execute(
-        """SELECT COUNT(*) FROM interests WHERE sponsor_id = :me AND status IN ('accepted', 'declined')
-           AND responded_at > :seen""", args).fetchone()[0]
+        """SELECT COUNT(*) FROM interests WHERE sponsor_id = :me
+           AND (status IN ('accepted', 'declined') OR (status = 'pending' AND turn = 'sponsor'))
+           AND responded_at > :seen AND COALESCE(last_actor, 0) != :me""", args).fetchone()[0]
     return likes + comments + offers + answers
 
 

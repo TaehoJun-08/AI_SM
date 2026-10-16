@@ -1,0 +1,5 @@
+{# What goes inside a server's icon circle: its photo, or initials when it hasn't set one.
+   Usage: <div class="srv-icon" style="--c: {{ s['color'] }}">{{ srv_icon(s) }}</div> #}
+{% macro srv_icon(s) -%}
+{%- if s['avatar'] %}<img src="{{ url_for('static', filename=s['avatar']) }}" alt="">{% else %}{{ s['icon'] or s['name'][:2]|upper }}{% endif -%}
+{%- endmacro %}

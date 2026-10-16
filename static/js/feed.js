@@ -19,6 +19,32 @@ async function toggleLike(post, onlyLike) {
   if (label) label.textContent = data.count + (data.count === 1 ? " like" : " likes");
 }
 
+// The sponsor dialog shows only the kinds this project accepts. With a single kind there is nothing to tick.
+function fillKinds(dialog, data, editing) {
+  const on = { money: data.okMoney === "1", goods: data.okGoods === "1", pilot: data.okPilot === "1" };
+  const have = {
+    money: editing ? !!data.amount : false, goods: editing ? !!data.goods : false, pilot: editing ? data.pilot === "1" : false,
+  };
+  const only = Object.values(on).filter(Boolean).length === 1;
+  dialog.querySelector("#sponsor-hint").hidden = only;
+  dialog.querySelectorAll(".kind-box").forEach((box) => {
+    const kind = box.dataset.kind, check = box.querySelector("input[type=checkbox]");
+    box.hidden = !on[kind];
+    box.classList.toggle("single", only);
+    check.checked = only || have[kind];
+    check.onchange = () => syncKind(box);
+    syncKind(box);
+  });
+  dialog.querySelector("#sponsor-amount").value = editing && data.amount ? data.amount : "";
+  dialog.querySelector("#sponsor-goods").value = editing ? data.goods || "" : "";
+}
+
+function syncKind(box) {
+  const open = box.querySelector("input[type=checkbox]").checked && !box.hidden;
+  box.classList.toggle("open", open);
+  box.querySelectorAll(".kind-fields input").forEach((i) => { i.disabled = !open; i.required = open; });
+}
+
 function burst(media) {
   const heart = media.querySelector(".heart-burst");
   if (!heart) return;
@@ -46,7 +72,7 @@ document.addEventListener("click", (event) => {
     withdraw.hidden = !editing;
     if (editing) withdraw.setAttribute("formaction", `/interests/${sponsor.dataset.editOffer}/withdraw`);
     document.getElementById("sponsor-title").textContent = sponsor.dataset.title;
-    document.getElementById("sponsor-amount").value = editing ? sponsor.dataset.amount : "";
+    fillKinds(dialog, sponsor.dataset, editing);
     document.getElementById("sponsor-message").value = editing ? sponsor.dataset.message : "";
     dialog.showModal();
     return;
