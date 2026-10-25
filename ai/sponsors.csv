@@ -1,0 +1,21 @@
+name,industry,sponsor_type,tags,city,contact
+BrewBox Energy,beverage,brand,energy drinks sports youth music fest,Pune,sponsor@brewbox.example
+PixelForge Games,gaming,brand,gaming esports tech students fest,Pune,hello@pixelforge.example
+SwiftWear,fashion,brand,fashion apparel youth fest cultural,Mumbai,team@swiftwear.example
+FitFuel Nutrition,health,brand,fitness sports health marathon students,Pune,partner@fitfuel.example
+SoundWave Audio,electronics,brand,music audio cultural fest gadgets,Bengaluru,events@soundwave.example
+CodeNest Learning,education,startup,coding hackathon students tech placement,Pune,collab@codenest.example
+CloudLeaf Hosting,cloud,startup,cloud hackathon tech developers students,Pune,students@cloudleaf.example
+RoboKart,robotics,startup,robotics hardware engineering competition students,Hyderabad,hello@robokart.example
+GreenLoop,environment,startup,environment sustainability social ngo campus cleanup,Pune,team@greenloop.example
+CampusCart,ecommerce,startup,students campus fest discounts startup,Delhi,biz@campuscart.example
+Chai and Chill Cafe,food,local_business,food cafe students campus fest,Pune,chaichill@cafe.example
+Sharma Print Studio,printing,local_business,printing posters banners fest cultural,Pune,sharmaprint@shop.example
+Fit Zone Gym,fitness,local_business,fitness sports health students gym,Pune,fitzone@gym.example
+Pune Books Corner,retail,local_business,books education students reading literary,Pune,books@corner.example
+Rangoli Events,events,local_business,cultural fest stage decor music dance,Pune,rangoli@events.example
+Unity Bank CSR,finance,corporate_csr,scholarship education community students social,Mumbai,csr@unitybank.example
+TechNova Foundation,technology,corporate_csr,tech hackathon students education innovation,Bengaluru,foundation@technova.example
+GreenPower Energy CSR,energy,corporate_csr,environment sustainability social community cleanup,Mumbai,csr@greenpower.example
+HealthFirst Pharma CSR,health,corporate_csr,health awareness social community ngo,Pune,csr@healthfirst.example
+BuildRight Infra CSR,infrastructure,corporate_csr,engineering education students innovation,Pune,csr@buildright.example
