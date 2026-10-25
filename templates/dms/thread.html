@@ -37,7 +37,7 @@
       </div>
       <form class="chat-form dm-form" id="chat-form">
         {% include "_chat_tools.html" %}
-        <input id="chat-input" placeholder="Message…" maxlength="2000" autocomplete="off">
+        <textarea id="chat-input" rows="1" placeholder="Message…" maxlength="2000"></textarea>
         <button>Send</button>
       </form>
     {% elif thread['status'] == 'pending' %}
