@@ -180,7 +180,7 @@
             <div class="slash-pop" id="slash-pop" hidden></div>
             <div class="srv-input-wrap">
               {% include "_chat_tools.html" %}
-              <input id="chat-input" placeholder="Message #{{ current['name'] }}{{ ' · slow mode ' ~ current['slowmode'] ~ 's' if page.slowmode }} — try /help" maxlength="2000" autocomplete="off">
+              <textarea id="chat-input" rows="1" placeholder="Message #{{ current['name'] }}{{ ' · slow mode ' ~ current['slowmode'] ~ 's' if page.slowmode }} — try /help" maxlength="2000"></textarea>
             </div>
           </form>
         {% elif m.timeout_until %}

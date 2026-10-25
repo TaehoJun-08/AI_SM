@@ -19,6 +19,18 @@
   let controller = null;
   let pendingFile = null;
 
+  function resizeInput() {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+  }
+  input.addEventListener("input", resizeInput);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
   function clearEmpty() { document.querySelector("#nova-log .chat-empty")?.remove(); }
 
   function userBubble(text, fileForPreview) {
@@ -155,6 +167,7 @@
     const file = pendingFile;
     if (!text && !file) return;
     input.value = "";
+    resizeInput();
     clearPreview();
     const userRow = userBubble(text, file);
     const modelRow = modelBubble();
