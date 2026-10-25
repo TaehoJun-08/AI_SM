@@ -139,6 +139,15 @@ def add_server_avatar(conn):
         conn.execute("ALTER TABLE servers ADD COLUMN avatar TEXT")
 
 
+def add_ai_attachments(conn):
+    """Nova's messages can carry one upload (so far: an image Nova can actually see)."""
+    have = [row[1] for row in conn.execute("PRAGMA table_info(ai_messages)")]
+    if have and "attachment" not in have:
+        conn.execute("ALTER TABLE ai_messages ADD COLUMN attachment TEXT")
+        conn.execute("ALTER TABLE ai_messages ADD COLUMN attach_type TEXT")
+        conn.execute("ALTER TABLE ai_messages ADD COLUMN attach_name TEXT")
+
+
 def add_reply_edit(conn):
     """Chat messages can be replies and can be edited: two new columns on both chat tables."""
     for table in ("dm_messages", "server_messages"):
@@ -233,6 +242,7 @@ def init_db():
     add_reply_edit(conn)
     add_sponsorship_kinds(conn)
     add_server_avatar(conn)
+    add_ai_attachments(conn)
     conn.commit()
     conn.close()
     print("Database ready at", DB_PATH)

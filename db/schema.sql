@@ -436,3 +436,34 @@ CREATE TABLE IF NOT EXISTS deal_rounds (
     created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_deal_rounds ON deal_rounds (interest_id, id);
+
+-- ---------- Nova: the platform's AI assistant ----------
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role       TEXT    NOT NULL CHECK (role IN ('user', 'model')),
+    body       TEXT    NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_messages ON ai_messages (user_id, id);
+
+-- Durable facts Nova has learned about one person, carried into every future conversation.
+CREATE TABLE IF NOT EXISTS ai_memory (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    fact       TEXT    NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_memory ON ai_memory (user_id, id);
+
+-- Anything Nova wants to do on a person's behalf (send a DM, post an update) waits here for one click.
+CREATE TABLE IF NOT EXISTS ai_actions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind       TEXT    NOT NULL CHECK (kind IN ('send_dm', 'post_update')),
+    payload    TEXT    NOT NULL,
+    status     TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_actions ON ai_actions (user_id, id);

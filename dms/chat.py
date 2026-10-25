@@ -38,6 +38,9 @@ def on_dm_send(data):
     emit("message", dm_message(db, cur.lastrowid), to=f"dm-{thread_id}")
     live.inbox_changed(thread_id)
     live.notify_dm(db, thread_id, user_id, live.preview("" if gif else body, "image" if gif else None))
+    if not gif:
+        from ai.presence import maybe_reply_in_dm
+        maybe_reply_in_dm(thread_id, user_id, body)
 
 
 @socketio.on("dm_delete")

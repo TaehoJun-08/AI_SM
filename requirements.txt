@@ -5,3 +5,4 @@ pytest
 flask-socketio
 simple-websocket
 Pillow
+google-genai

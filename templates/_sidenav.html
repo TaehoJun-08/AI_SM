@@ -24,6 +24,8 @@
   <a class="sn-link" href="{{ url_for('servers.home') }}">
     <span class="sn-icon">{{ icon('users', 26) }}{{ badge('servers', badges.server_total) }}</span>
     <span class="sn-label">Servers</span></a>
+  <a class="sn-link {{ 'active' if ep.startswith('ai.') }}" href="{{ url_for('ai.thread') }}">
+    {{ icon('spark', 26, ep.startswith('ai.')) }}<span class="sn-label">Nova</span></a>
   <a class="sn-link {{ 'active' if ep.startswith('profiles.') }}" href="{{ url_for('profiles.public', username=user['username']) }}">
     {{ avatar(user['full_name'], user['avatar'], 'xs', uid=user['id']) }}<span class="sn-label">Profile</span></a>
   {% set st = user['status'] %}
