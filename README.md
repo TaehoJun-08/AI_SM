@@ -85,15 +85,23 @@ so you can show live chat, likes and sponsorship offers going both ways.
 - **Servers**: create a server, add roles, categories and private channels, invite people with a code
 - **Settings**: profile photo, light / dark / system theme, accent colours, privacy, download your data
 - **PDF report** of a project (⋯ menu on your own post)
+- **Nova**: an AI assistant (sidebar) that remembers facts about you, reads your own projects and deals on
+  request, drafts messages/updates for your approval before anything is sent, and can run a quick Python
+  snippet in a sandbox. Streams its replies, supports editing a message to regenerate, a Stop button, and
+  image uploads. Also reachable with **@nova** anywhere people chat -- any server channel or any DM -- where
+  it reads the recent conversation and replies right there (not in feed comments). Needs `GEMINI_API_KEY`.
 
 ## Optional settings (a `.env` file in the project folder)
 
 ```
 SECRET_KEY=any-long-random-text
 GIPHY_API_KEY=your_free_key_from_developers.giphy.com   # only needed for GIF *search*
+GEMINI_API_KEY=your_free_key_from_aistudio.google.com   # powers Nova, the AI assistant
+GEMINI_MODEL=gemini-flash-lite-latest                    # optional, this is the default (fast, free-tier friendly)
 ```
 
-Without a `.env` the app still starts. Pasting a GIF link into the message box always works.
+Without a `.env` the app still starts. Pasting a GIF link into the message box always works, and Nova
+says so politely instead of answering until a `GEMINI_API_KEY` is set.
 
 ## Project layout
 
@@ -103,6 +111,7 @@ Without a `.env` the app still starts. Pasting a GIF link into the message box a
 | `auth/` `profiles/` `settings/` | Accounts, public profiles, settings |
 | `feed/` `projects/` `interests/` | Feed, posts, comments, sponsorship offers |
 | `dms/` `servers/` | Direct messages and Discord-style servers (with live chat in `chat.py`) |
+| `ai/` | Nova: the Gemini-backed assistant, its tools, memory and sandbox |
 | `reports/` | PDF reports |
 | `db/schema.sql`, `db.py` | Database tables and automatic upgrades |
 | `templates/`, `static/` | Pages, styles (`css/app.css`), scripts, bundled emoji picker |
