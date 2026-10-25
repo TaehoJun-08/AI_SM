@@ -47,6 +47,7 @@
     <div class="fund">
       <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
       <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
+{% if mine %}<div style="margin-top:10px"><a href="{{ url_for('ai.page', pid=post.id) }}" style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#f97316);color:#fff;text-decoration:none;font-weight:600;font-size:14px">&#10024; Find sponsors with AI</a></div>{% endif %}
     </div>
     {% endif %}
     <p class="caption"><a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
