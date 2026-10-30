@@ -53,7 +53,7 @@
         <div class="goal-bar"><i style="width: {{ proj.percent }}%"></i></div>
         <small>₹{{ '{:,}'.format(proj.raised) }} of ₹{{ '{:,}'.format(proj.ask) }} · {{ proj.sponsors }} sponsor{{ '' if proj.sponsors == 1 else 's' }}</small>
         {% if proj.milestones %}
-          <div class="srv-ms">{% for ms in proj.milestones %}<div><span class="{{ 'ok' if ms.state != 'open' }}">{{ '✅' if ms.state == 'done' else ('🟡' if ms.state == 'funded' else '⬜') }}</span> {{ ms.title }}</div>{% endfor %}</div>
+          <div class="srv-ms">{% for ms in proj.milestones %}<div><span class="{{ 'ok' if ms.state != 'open' }}">{{ {'open': '⬜', 'funded': '🔒', 'review': '🔍', 'released': '✅'}[ms.state] }}</span> {{ ms.title }}</div>{% endfor %}</div>
         {% endif %}
       </div>
     {% endif %}

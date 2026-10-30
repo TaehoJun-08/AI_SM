@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Endorse {{ e['title'] }}{% endblock %}
+{% block content %}
+<div class="endorse-page">
+  <div class="glass endorse-card">
+    <div class="empty-ring">🎓</div>
+    {% if e['status'] == 'endorsed' %}
+      <h4>{{ 'Thank you!' if done else 'Already endorsed' }}</h4>
+      <p class="muted">“{{ e['title'] }}” now shows <b>🎓 Endorsed by {{ e['mentor_name'] }}</b>. You can close this page.</p>
+    {% else %}
+      <h4>Endorse “{{ e['title'] }}”?</h4>
+      <p class="muted mb-1">{{ e['full_name'] }} named you, <b>{{ e['mentor_name'] }}</b> ({{ e['mentor_email'] }}), as a faculty mentor.</p>
+      <p class="endorse-summary">{{ e['summary'] }}</p>
+      <p class="muted small">Confirming adds your name and college domain to the project, so sponsors know a mentor vouches for it.</p>
+      <form method="POST" action="{{ url_for('verify.confirm_endorsement', token=token) }}">
+        <button class="btn btn-primary rounded-pill px-4">Yes, I endorse this project</button>
+      </form>
+      <p class="muted small mt-3 mb-0">Don't know this project? Just close this page. Nothing happens.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

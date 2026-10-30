@@ -6,6 +6,7 @@
 {% set mine = post.innovator_id == user['id'] %}
 {% set pct = [100, (post.raised * 100 // post.funding_needed)]|min %}
 <div class="post-page">
+  <a class="post-close" href="{{ url_for('feed.index') }}" title="Close" aria-label="Close">&times;</a>
   <div class="post post-detail" data-id="{{ post.id }}" data-author="{{ post.innovator_id }}">
     {% with square=true %}{% include "feed/_media.html" %}{% endwith %}
 
@@ -14,6 +15,7 @@
         <a class="story-ring sm" href="{{ url_for('profiles.public', username=post.username) }}">
           {{ avatar(post.full_name, post.avatar, 'sm') }}</a>
         <a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
+        {% if post.verified_at %}<span class="verified" title="Verified college email">✓</span>{% endif %}
         {% if mine %}
           <div class="dropdown ms-auto">
             <button class="icon-btn" data-bs-toggle="dropdown">{{ icon('dots', 22) }}</button>
@@ -60,23 +62,84 @@
             {% endif %}
           </div>
 
+          {% if ex.endorsements or mine %}
+            <div class="endorse">
+              {% for e in ex.endorsements if e.status == 'endorsed' %}
+                <span class="endorse-chip" title="Confirmed from {{ e.mentor_email }}">🎓 Endorsed by <b>{{ e.mentor_name }}</b> · {{ e.mentor_email.split('@')[1] }}</span>
+              {% endfor %}
+              {% if mine %}
+                {% for e in ex.endorsements if e.status == 'pending' %}
+                  <small class="muted d-block">⏳ Waiting for {{ e.mentor_name }} ({{ e.mentor_email }}) to confirm</small>
+                {% endfor %}
+                <details class="ms-proof-form">
+                  <summary>🎓 Ask a faculty mentor to endorse this</summary>
+                  <form method="POST" action="{{ url_for('verify.ask_mentor', project_id=post.id) }}" class="ms-form">
+                    <input name="name" maxlength="60" placeholder="Prof. A. Sharma" required>
+                    <input name="email" type="email" maxlength="120" placeholder="mentor@college.edu.in" required>
+                    <button>Send</button>
+                  </form>
+                  <small class="muted">They get an email with a link. Only college addresses (.edu, .ac.in, .edu.in…) count.</small>
+                </details>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% set es = ex.escrow %}
           {% if ex.milestones or (mine and post.accepts_money) %}
             <h6 class="proj-h">🎯 Milestones</h6>
+            {% if es.raised %}
+              <div class="escrow-sum" title="Sponsors' money is held in escrow and released milestone by milestone">
+                <span>🔒 <b>₹{{ '{:,}'.format(es.locked) }}</b> locked in escrow</span>
+                <span>💸 <b>₹{{ '{:,}'.format(es.released) }}</b> released</span>
+              </div>
+              {% if mine and es.uncovered %}
+                <small class="muted d-block mb-2">₹{{ '{:,}'.format(es.uncovered) }} isn't tied to a milestone yet. Add one to be able to unlock it.</small>
+              {% endif %}
+            {% elif mine and post.accepts_money %}
+              <small class="muted d-block mb-2">Sponsors' money is held in escrow and released one milestone at a time, after they approve your proof.</small>
+            {% endif %}
             {% for m in ex.milestones %}
               <div class="ms {{ m.state }}">
-                <span class="ms-dot">{{ '✓' if m.state != 'open' else '' }}</span>
+                <span class="ms-dot">{{ '✓' if m.state == 'released' else '' }}</span>
                 <span class="ms-title">{{ m.title }}</span>
-                <small>₹{{ '{:,}'.format(m.amount) }} · {{ {'open': 'not funded yet', 'funded': 'funded', 'done': 'done'}[m.state] }}</small>
-                {% if mine %}
-                  <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='done') }}"><button class="ms-btn" title="Mark the work done / not done">{{ '↩' if m.done else '✔ done' }}</button></form>
+                <small title="Unlocks once ₹{{ '{:,}'.format(m.amount) }} is raised">₹{{ '{:,}'.format(m.share) }} · {{ m.text }}</small>
+                {% if mine and m.state in ['open', 'funded'] %}
                   <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='delete') }}"><button class="ms-btn" title="Remove">✕</button></form>
+                {% endif %}
+
+                {% if m.state == 'review' %}
+                  <div class="ms-proof">
+                    <p>{{ m.proof }}</p>
+                    {% if m.proof_image %}<img src="{{ url_for('static', filename=m.proof_image) }}" alt="Proof for {{ m.title }}">{% endif %}
+                    <div class="ms-vote-bar"><i class="yes" style="width: {{ m.yes }}%"></i><i class="no" style="width: {{ m.no }}%"></i></div>
+                    <small class="muted">{{ m.yes }}% of sponsor money approves · {{ m.no }}% wants more. Over 50% approving releases it.</small>
+                    {% for v in m.notes %}<small class="d-block">@{{ v.username }}: {{ v.note }}</small>{% endfor %}
+                    {% if es.backer %}
+                      <form method="POST" action="{{ url_for('escrow.vote', milestone_id=m.id) }}" class="ms-vote">
+                        <input name="note" maxlength="300" placeholder="Note (needed to send it back)">
+                        <button name="vote" value="approve" class="{{ 'on' if m.my_vote == 'approve' }}">✅ Approve &amp; release</button>
+                        <button name="vote" value="reject" class="ghost {{ 'on' if m.my_vote == 'reject' }}">↩ Send back</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                {% if mine and m.state in ['funded', 'review'] %}
+                  {% if m.sent_back and m.state == 'funded' %}<small class="ms-sent-back">↩ Sponsors asked for more: {{ m.sent_back }}</small>{% endif %}
+                  <details class="ms-proof-form" {{ 'open' if m.state == 'funded' }}>
+                    <summary>{{ '✏️ Update the proof' if m.state == 'review' else '📎 Submit proof to release ₹' ~ '{:,}'.format(m.share) }}</summary>
+                    <form method="POST" action="{{ url_for('escrow.submit_proof', milestone_id=m.id) }}" enctype="multipart/form-data" class="upd-form">
+                      <textarea name="proof" rows="2" maxlength="800" placeholder="What did you finish? Links, results, numbers…" required>{{ m.proof or '' }}</textarea>
+                      <div class="d-flex gap-2 align-items-center"><input type="file" name="image" accept="image/*"><button>Send proof</button></div>
+                    </form>
+                  </details>
                 {% endif %}
               </div>
             {% endfor %}
             {% if mine and post.accepts_money and ex.milestones|length < 6 %}
               <form method="POST" action="{{ url_for('projupdates.add_milestone', project_id=post.id) }}" class="ms-form">
                 <input name="title" maxlength="60" placeholder="What the money unlocks" required>
-                <input name="amount" type="number" min="1" max="{{ post.funding_needed }}" placeholder="₹ amount" required>
+                <input name="amount" type="number" min="1" max="{{ post.funding_needed }}" placeholder="₹ raised by then" title="The total raised when this milestone unlocks" required>
                 <button>Add</button>
               </form>
             {% endif %}
@@ -137,4 +200,24 @@
 </div>
 {% include "feed/_sponsor_dialog.html" %}
 <script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+<script>
+  // Close like Instagram: the ×, a click on the empty space around the post, or Esc takes you back.
+  (() => {
+    const page = document.querySelector(".post-page");
+    const closeBtn = page.querySelector(".post-close");
+    function goBack(e) {
+      e.preventDefault();
+      const cameFromThisSite = document.referrer.startsWith(location.origin);
+      if (cameFromThisSite && history.length > 1) history.back();
+      else location.href = closeBtn.href;
+    }
+    closeBtn.addEventListener("click", goBack);
+    page.addEventListener("click", (e) => { if (e.target === page) goBack(e); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (e.target.closest("input, textarea") || document.querySelector("dialog[open]")) return;
+      goBack(e);
+    });
+  })();
+</script>
 {% endblock %}

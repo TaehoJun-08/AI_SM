@@ -44,6 +44,10 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(api_bp)
 from servers.projectlink import proj_bp
 app.register_blueprint(proj_bp)
+from escrow import escrow_bp
+app.register_blueprint(escrow_bp)
+from verify import verify_bp
+app.register_blueprint(verify_bp)
 from live import live_bp
 app.register_blueprint(live_bp)
 from callsvc import calls_bp

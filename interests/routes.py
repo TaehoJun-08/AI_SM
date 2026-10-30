@@ -84,6 +84,9 @@ def edit(interest_id):
         flash(error)
         return go_back(url_for("feed.activity"))
     before = deals.terms_of(offer)
+    if offer["status"] == "accepted" and terms["money"] < before["money"]:
+        flash(f"₹{before['money']:,} is locked in escrow. You can add more money, but not take any back.")
+        return go_back(url_for("feed.post", post_id=offer["project_id"]))
     if terms == before and message == offer["message"]:
         flash("Nothing changed.")
         return go_back(url_for("feed.activity"))
@@ -119,7 +122,11 @@ def withdraw(interest_id):
         (interest_id, me)).fetchone()
     if offer is None:
         abort(404)
-    talked = db.execute("SELECT COUNT(*) FROM deal_rounds WHERE interest_id = ?", (interest_id,)).fetchone()[0] > 1
+    if offer["status"] == "accepted" and offer["amount"]:
+        flash(f"Your ₹{offer['amount']:,} is locked in escrow for this project, so it can't be withdrawn. "
+              "It's released milestone by milestone, only when you and the other sponsors approve the proof.")
+        return go_back(url_for("feed.post", post_id=offer["project_id"]))
+    talked =db.execute("SELECT COUNT(*) FROM deal_rounds WHERE interest_id = ?", (interest_id,)).fetchone()[0] > 1
     chat = None
     if offer["status"] == "pending" and not talked:
         db.execute("DELETE FROM interests WHERE id = ?", (interest_id,))

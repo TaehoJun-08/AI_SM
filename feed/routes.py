@@ -10,7 +10,8 @@ feed_bp = Blueprint("feed", __name__)
 PAGE_SIZE = 5
 
 POST_SELECT = """
-    SELECT p.*, u.username, u.full_name, u.avatar, u.accepts_offers,
+    SELECT p.*, u.username, u.full_name, u.avatar, u.accepts_offers, u.verified_at,
+      EXISTS (SELECT 1 FROM project_endorsements WHERE project_id = p.id AND status = 'endorsed') AS endorsed,
       (SELECT COUNT(*) FROM likes WHERE post_id = p.id) AS like_count,
       EXISTS (SELECT 1 FROM likes WHERE post_id = p.id AND user_id = :me) AS liked,
       (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count,

@@ -86,7 +86,9 @@
       <div class="deal-wait"><span class="wait-dots"><i></i><i></i><i></i></span>
         Waiting for @{{ other['username'] }} to answer. You'll get a notification the moment they do.</div>
     {% elif offer['status'] == 'accepted' %}
-      <div class="deal-wait done">🤝 This deal is agreed. <a href="{{ url_for('dms.inbox') }}">Open your chat</a> to plan the next steps.</div>
+      <div class="deal-wait done">🤝 This deal is agreed. <a href="{{ url_for('dms.inbox') }}">Open your chat</a> to plan the next steps.
+        {% if terms.money %}<br>🔒 The ₹{{ '{:,}'.format(terms.money) }} is locked in escrow and released milestone by milestone.
+          <a href="{{ url_for('feed.post', post_id=offer['project_id']) }}">See the milestones</a>{% endif %}</div>
     {% else %}
       <div class="deal-wait">This deal is closed.</div>
     {% endif %}

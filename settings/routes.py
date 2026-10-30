@@ -11,7 +11,7 @@ import live
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 TABS = {"profile": "Profile", "appearance": "Appearance", "privacy": "Privacy",
-        "account": "Account"}
+        "verify": "Verification", "account": "Account"}
 THEMES = ("system", "light", "dark")
 ACCENTS = {"aurora": "Aurora", "ocean": "Ocean", "sunset": "Sunset", "forest": "Forest"}
 USERNAME_PATTERN = r"[A-Za-z0-9_.]{3,20}"
@@ -28,7 +28,10 @@ def index():
     tab = request.args.get("tab", "profile")
     if tab not in TABS:
         tab = "profile"
-    return render_template("settings/index.html", tab=tab, tabs=TABS, accents=ACCENTS)
+    code = None
+    if tab == "verify":
+        code = get_db().execute("SELECT email FROM email_codes WHERE user_id = ?", (session["user_id"],)).fetchone()
+    return render_template("settings/index.html", tab=tab, tabs=TABS, accents=ACCENTS, code=code)
 
 
 # ---------- Profile ----------

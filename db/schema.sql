@@ -467,3 +467,38 @@ CREATE TABLE IF NOT EXISTS ai_actions (
     created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_actions ON ai_actions (user_id, id);
+
+-- ---------- Milestone escrow (simulated) and verification ----------
+
+-- Sponsors vote on the proof a creator uploads for a funded milestone. Votes count by money given.
+CREATE TABLE IF NOT EXISTS milestone_votes (
+    milestone_id INTEGER NOT NULL REFERENCES project_milestones(id) ON DELETE CASCADE,
+    sponsor_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    vote         TEXT    NOT NULL CHECK (vote IN ('approve', 'reject')),
+    note         TEXT    NOT NULL DEFAULT '',
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (milestone_id, sponsor_id)
+);
+
+-- The one code waiting to prove someone owns a college email address.
+CREATE TABLE IF NOT EXISTS email_codes (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email      TEXT    NOT NULL,
+    code_hash  TEXT    NOT NULL,
+    tries      INTEGER NOT NULL DEFAULT 0,
+    sent_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    expires_at TEXT    NOT NULL
+);
+
+-- A faculty mentor vouches for a project by clicking a link sent to their college email.
+CREATE TABLE IF NOT EXISTS project_endorsements (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    mentor_name  TEXT    NOT NULL,
+    mentor_email TEXT    NOT NULL,
+    token_hash   TEXT    NOT NULL UNIQUE,
+    status       TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'endorsed')),
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    endorsed_at  TEXT,
+    UNIQUE (project_id, mentor_email)
+);

@@ -303,6 +303,10 @@
 
 /* Single post page */
 .post-page { display: flex; justify-content: center; padding: 28px 16px 40px; }
+/* Instagram-style close: the × in the corner; clicking the empty space around the post also closes it */
+.post-page { min-height: calc(100vh - 24px); align-items: center; }
+.post-close { position: fixed; top: 16px; right: 24px; z-index: 20; font-size: 2.6rem; line-height: 1; color: var(--text); opacity: .75; text-decoration: none; }
+.post-close:hover { opacity: 1; color: var(--text); }
 .post-detail { display: grid; grid-template-columns: minmax(0, 1fr) 400px; width: min(1000px, 100%); height: min(86vh, 720px); padding: 0; margin: 0; overflow: hidden; }
 .post-detail:hover { transform: none; }
 .detail-side { display: flex; flex-direction: column; border-left: 1px solid var(--line); padding: 14px 16px 12px; min-height: 0; }
@@ -1038,6 +1042,40 @@ a.p-item:hover { border-color: var(--a1); }
 .upd { border-left: 3px solid var(--a1); padding: 2px 0 2px 12px; margin: 10px 0; }
 .upd p { margin: 2px 0; white-space: pre-wrap; }
 .upd img { max-width: 100%; border-radius: .8rem; margin-top: 4px; }
+
+/* Milestone escrow: locked / in review / released, proof and sponsor votes */
+.ms.review .ms-dot { background: #0ea5e9; border-color: #0ea5e9; }
+.ms.released .ms-dot { background: #10b981; border-color: #10b981; }
+.escrow-sum { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; margin-bottom: 8px; border-radius: .8rem; border: 1px dashed var(--a1); font-size: .85rem; }
+.ms-proof, .ms-proof-form, .ms-sent-back { flex-basis: 100%; }
+.ms-proof { padding: 8px 0 2px 28px; }
+.ms-proof p { margin: 0 0 4px; white-space: pre-wrap; }
+.ms-proof img { max-width: 100%; max-height: 220px; border-radius: .8rem; margin-bottom: 6px; }
+.ms-vote-bar { display: flex; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 4px 0; }
+.ms-vote-bar .yes { background: #10b981; }
+.ms-vote-bar .no { background: #e11d48; margin-left: auto; }
+.ms-vote { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ms-vote input { flex: 1; min-width: 140px; padding: 5px 10px; border-radius: .7rem; border: 1px solid var(--line); background: var(--input); color: var(--text); }
+.ms-vote button { border: 0; border-radius: 999px; padding: 5px 14px; font-weight: 700; font-size: .8rem; background: var(--grad); color: #fff; }
+.ms-vote button.ghost { background: none; border: 1px solid var(--line); color: var(--text); }
+.ms-vote button.on { box-shadow: 0 0 0 2px var(--a1); }
+.ms-sent-back { color: #e11d48; padding-left: 28px; }
+.ms-proof-form { padding-left: 28px; }
+.ms-proof-form summary { cursor: pointer; font-size: .82rem; font-weight: 700; color: var(--accent); }
+[data-theme="dark"] .ms-proof-form summary { color: #c4b5fd; }
+
+/* Trust badges: verified college email (✓) and faculty-mentor endorsements (🎓) */
+.verified { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: .62rem; font-weight: 900; vertical-align: middle; margin-left: 2px; }
+.verified.lg { width: 24px; height: 24px; font-size: .9rem; }
+.endorsed-mark { font-size: .85rem; vertical-align: middle; }
+.endorse { margin: 6px 0 10px; }
+.endorse .ms-proof-form { padding-left: 0; margin-top: 4px; }
+.endorse-chip { display: inline-block; font-size: .8rem; padding: 5px 12px; border-radius: 999px; margin: 0 6px 6px 0; background: rgba(16, 185, 129, .14); border: 1px solid rgba(16, 185, 129, .45); color: var(--text); }
+.verify-done { display: flex; align-items: center; gap: 12px; }
+.code-input { max-width: 160px; letter-spacing: .4em; font-weight: 700; text-align: center; }
+.endorse-page { display: flex; justify-content: center; padding: 48px 16px; }
+.endorse-card { max-width: 520px; width: 100%; padding: 32px 28px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.endorse-summary { font-style: italic; margin: 10px 0; }
 .join-proj { text-align: left; background: var(--hover); border-radius: 1rem; padding: 12px 14px; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
 /* Explore: project cards + filters */
 .dc-tabs { display: flex; gap: 6px; margin: 12px 0 6px; }

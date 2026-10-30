@@ -10,7 +10,7 @@ profiles_bp = Blueprint("profiles", __name__)
 def public(username):
     db = get_db()
     person = db.execute(
-        """SELECT id, full_name, username, bio, avatar, accepts_offers, created_at
+        """SELECT id, full_name, username, bio, avatar, accepts_offers, created_at, college_email, verified_at
            FROM users WHERE username = ? AND is_bot = 0""",
         (username,),
     ).fetchone()

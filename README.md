@@ -90,6 +90,12 @@ so you can show live chat, likes and sponsorship offers going both ways.
   snippet in a sandbox. Streams its replies, supports editing a message to regenerate, a Stop button, and
   image uploads. Also reachable with **@nova** anywhere people chat -- any server channel or any DM -- where
   it reads the recent conversation and replies right there (not in feed comments). Needs `GEMINI_API_KEY`.
+- **Milestone escrow** (simulated, no real payments): agreed money is locked and released one milestone at
+  a time. The creator uploads proof; once sponsors holding more than half of the money approve, that
+  milestone's share is released. Locked money can't be withdrawn or reduced.
+- **Trust badges**: verify a college email with a 6-digit code (Settings -> Verification) for a ✓ next to
+  your name, and ask a faculty mentor to endorse a project (they confirm from a link in their email) for
+  a 🎓 badge on the post. Needs `MAIL_USERNAME` + `MAIL_APP_PASSWORD`.
 
 ## Optional settings (a `.env` file in the project folder)
 
@@ -98,7 +104,12 @@ SECRET_KEY=any-long-random-text
 GIPHY_API_KEY=your_free_key_from_developers.giphy.com   # only needed for GIF *search*
 GEMINI_API_KEY=your_free_key_from_aistudio.google.com   # powers Nova, the AI assistant
 GEMINI_MODEL=gemini-flash-lite-latest                    # optional, this is the default (fast, free-tier friendly)
+MAIL_USERNAME=yourname@gmail.com                         # sends verification codes and mentor links
+MAIL_APP_PASSWORD=abcd efgh ijkl mnop                    # a Gmail App Password (Google account -> Security -> App passwords)
 ```
+
+Without the mail settings, verification emails aren't sent. When you run `python app.py` (debug mode),
+they're printed in the terminal instead, so you can still try verification on your own computer.
 
 Without a `.env` the app still starts. Pasting a GIF link into the message box always works, and Nova
 says so politely instead of answering until a `GEMINI_API_KEY` is set.

@@ -148,6 +148,20 @@ def add_ai_attachments(conn):
         conn.execute("ALTER TABLE ai_messages ADD COLUMN attach_name TEXT")
 
 
+def add_escrow_and_verification(conn):
+    """Milestones hold sponsors' money until proof is approved, and people can verify a college email.
+    Milestones an owner had already ticked "done" count as released."""
+    have = [row[1] for row in conn.execute("PRAGMA table_info(project_milestones)")]
+    if have and "released_at" not in have:
+        for name in ("proof", "proof_image", "proof_at", "released_at", "sent_back"):
+            conn.execute(f"ALTER TABLE project_milestones ADD COLUMN {name} TEXT")
+        conn.execute("UPDATE project_milestones SET released_at = datetime('now','localtime') WHERE done = 1")
+    have = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
+    if have and "verified_at" not in have:
+        conn.execute("ALTER TABLE users ADD COLUMN college_email TEXT")
+        conn.execute("ALTER TABLE users ADD COLUMN verified_at TEXT")
+
+
 def add_reply_edit(conn):
     """Chat messages can be replies and can be edited: two new columns on both chat tables."""
     for table in ("dm_messages", "server_messages"):
@@ -243,6 +257,7 @@ def init_db():
     add_sponsorship_kinds(conn)
     add_server_avatar(conn)
     add_ai_attachments(conn)
+    add_escrow_and_verification(conn)
     conn.commit()
     conn.close()
     print("Database ready at", DB_PATH)

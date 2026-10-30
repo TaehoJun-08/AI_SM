@@ -140,6 +140,38 @@
           <button class="btn btn-primary mt-3">Save privacy</button>
         </form>
 
+      {# ---------------- VERIFICATION ---------------- #}
+      {% elif tab == 'verify' %}
+        <h5>Verification</h5>
+        {% if user['verified_at'] %}
+          <div class="verify-done">
+            <span class="verified lg">✓</span>
+            <div><b>Verified college email</b><small class="muted d-block">{{ user['college_email'] }} · since {{ user['verified_at'][:10] }}</small></div>
+          </div>
+          <p class="muted mt-3">The ✓ shows next to your name on your posts and profile, so sponsors know you're a real student.</p>
+          <form method="POST" action="{{ url_for('verify.remove') }}" onsubmit="return confirm('Remove your college email and the ✓ badge?')">
+            <button class="btn btn-outline-secondary btn-sm">Remove</button>
+          </form>
+        {% else %}
+          <p class="muted">Verify the email your college gave you to get a <span class="verified">✓</span> next to your name.
+            Sponsors trust verified students more. We only use it for this badge.</p>
+          <label class="set-label">1 · Your college email</label>
+          <form method="POST" action="{{ url_for('verify.send_code') }}" class="d-flex gap-2 flex-wrap">
+            <input name="email" type="email" class="form-control" style="max-width: 320px" maxlength="120"
+                   placeholder="you@college.edu.in" value="{{ code['email'] if code }}" required>
+            <button class="btn btn-primary">{{ 'Send a new code' if code else 'Send code' }}</button>
+          </form>
+          {% if code %}
+            <label class="set-label">2 · The 6-digit code we emailed to {{ code['email'] }}</label>
+            <form method="POST" action="{{ url_for('verify.check_code') }}" class="d-flex gap-2 flex-wrap">
+              <input name="code" class="form-control code-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                     placeholder="123456" autocomplete="one-time-code" required autofocus>
+              <button class="btn btn-primary">Verify</button>
+            </form>
+            <small class="muted d-block mt-2">The code works for 10 minutes. Didn't get it? Check spam, or send a new one.</small>
+          {% endif %}
+        {% endif %}
+
       {# ---------------- ACCOUNT ---------------- #}
       {% else %}
         <h5>Account</h5>

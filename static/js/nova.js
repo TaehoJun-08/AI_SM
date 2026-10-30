@@ -249,4 +249,18 @@
       btn.closest(".nova-fact").remove();
     });
   });
+
+  // Remember where you were in the conversation, and come back to that spot next time.
+  // First visit (nothing saved yet) starts at the newest message instead of the top.
+  const SCROLL_KEY = "nova-scroll";
+  function restoreScroll() {
+    let saved = null;
+    try { saved = localStorage.getItem(SCROLL_KEY); } catch (e) {}
+    log.scrollTop = saved === null ? log.scrollHeight : Number(saved);
+  }
+  restoreScroll();
+  window.addEventListener("load", restoreScroll);
+  log.addEventListener("scroll", () => {
+    try { localStorage.setItem(SCROLL_KEY, log.scrollTop); } catch (e) {}
+  });
 })();

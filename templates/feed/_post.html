@@ -8,6 +8,8 @@
       {{ avatar(post.full_name, post.avatar, 'sm') }}</a>
     <div class="lh-sm">
       <a class="post-user" href="{{ url_for('profiles.public', username=post.username) }}">{{ post.username }}</a>
+      {% if post.verified_at %}<span class="verified" title="Verified college email">✓</span>{% endif %}
+      {% if post.endorsed %}<span class="endorsed-mark" title="Endorsed by a faculty mentor">🎓</span>{% endif %}
       <span class="post-dot">•</span><time class="post-time">{{ post.created_at[:10] }}</time>
       <div class="post-sub">{{ post.domain }} · {{ post.stage|capitalize }}</div>
     </div>

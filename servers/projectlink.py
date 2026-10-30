@@ -58,7 +58,7 @@ def status_embed(db, server):
             "fields": [{"name": "Owner", "value": f"@{s['owner']}", "inline": True},
                        {"name": "Sponsors", "value": str(s["sponsors"]) + (f" ({s['free']} free)" if s["free"] else ""), "inline": True},
                        {"name": "Asking" if s["money"] else "Wants", "value": f"₹{s['ask']:,}" if s["money"] else s["wants"], "inline": True}]
-                      + ([{"name": "Milestones", "value": " · ".join(("✅ " if m["state"] != "open" else "⬜ ") + m["title"] for m in s["milestones"])}]
+                      + ([{"name": "Milestones", "value": " · ".join(MILESTONE_ICON[m["state"]] + " " + m["title"] for m in s["milestones"])}]
                          if s["milestones"] else []),
             **({"progress": {"value": s["raised"], "goal": s["ask"], "label": f"₹{s['raised']:,} of ₹{s['ask']:,} sponsored"}} if s["money"] else {}),
             "footer": "Open the project post to sponsor or comment"}
@@ -288,16 +288,32 @@ def chip(project_id):
 
 
 def milestones(db, project_id, got=None):
+    """Milestones in order. Each one's `share` is its amount minus the one before (the money it releases), and
+    its state goes open (not covered yet) -> funded (money locked in escrow) -> review (sponsors are checking
+    the proof) -> released. See escrow.py."""
     got = raised(db, project_id) if got is None else got
-    items = []
+    items, floor = [], 0
     for m in db.execute("SELECT * FROM project_milestones WHERE project_id = ? ORDER BY amount, id", (project_id,)):
-        state = "done" if m["done"] else ("funded" if got >= m["amount"] else "open")
-        items.append(dict(m, state=state))
+        if m["released_at"]:
+            state = "released"
+        elif got < m["amount"]:
+            state = "open"
+        else:
+            state = "review" if m["proof_at"] else "funded"
+        items.append(dict(m, state=state, share=max(m["amount"] - floor, 0)))
+        floor = max(floor, m["amount"])
     return items
 
 
+MILESTONE_ICON = {"open": "⬜", "funded": "🔒", "review": "🔍", "released": "✅"}
+
+
 def post_extras(db, project_id, me):
-    return {"milestones": milestones(db, project_id),
+    import escrow
+    money = escrow.ledger(db, project_id, me)
+    return {"milestones": money["milestones"], "escrow": money,
+            "endorsements": db.execute("SELECT * FROM project_endorsements WHERE project_id = ? ORDER BY id",
+                                       (project_id,)).fetchall(),
             "updates": db.execute("""SELECT up.*, u.username FROM project_updates up JOIN users u ON u.id = up.author_id
                                      WHERE up.project_id = ? ORDER BY up.id DESC LIMIT 10""", (project_id,)).fetchall(),
             "followers": len(follower_ids(db, project_id)),
@@ -383,8 +399,12 @@ def add_milestone(project_id):
     project = owned(db, project_id)
     title = request.form.get("title", "").strip()[:60]
     amount = request.form.get("amount", type=int)
+    paid_up_to = db.execute("SELECT MAX(amount) FROM project_milestones WHERE project_id = ? AND released_at IS NOT NULL",
+                            (project_id,)).fetchone()[0] or 0
     if not title or not amount or not 0 < amount <= project["funding_needed"]:
         flash(f"A milestone needs a title and an amount up to ₹{project['funding_needed']:,}.")
+    elif amount <= paid_up_to:
+        flash(f"Money up to ₹{paid_up_to:,} is already released. A new milestone has to come after that.")
     elif db.execute("SELECT COUNT(*) FROM project_milestones WHERE project_id = ?", (project_id,)).fetchone()[0] >= MAX_MILESTONES:
         flash(f"A project can have up to {MAX_MILESTONES} milestones.")
     else:
@@ -400,12 +420,16 @@ def add_milestone(project_id):
 def milestone_action(project_id, milestone_id, action):
     db = get_db()
     owned(db, project_id)
-    if action == "done":
-        db.execute("UPDATE project_milestones SET done = 1 - done WHERE id = ? AND project_id = ?", (milestone_id, project_id))
-    elif action == "delete":
-        db.execute("DELETE FROM project_milestones WHERE id = ? AND project_id = ?", (milestone_id, project_id))
-    else:
+    if action != "delete":                          # "done" is now earned through escrow (proof + sponsor votes)
         abort(404)
+    state = next((m["state"] for m in milestones(db, project_id) if m["id"] == milestone_id), None)
+    if state in ("review", "released"):
+        flash("This milestone's proof is with sponsors or already paid, so it can't be removed.")
+        return back_to_post(project_id)
+    row = db.execute("SELECT proof_image FROM project_milestones WHERE id = ? AND project_id = ?", (milestone_id, project_id)).fetchone()
+    db.execute("DELETE FROM project_milestones WHERE id = ? AND project_id = ?", (milestone_id, project_id))
+    if row:
+        delete_media(row["proof_image"])
     db.commit()
     live.touch(["posts"])
     return back_to_post(project_id)
