@@ -66,6 +66,9 @@ def on_send(data):
                  attach_type="image" if gif else None, attach_name="gif" if gif else None,
                  can_ping_all="mention_all" in m["perms"])
     companions.on_message(db, server, channel, user_id)
+    if not gif:
+        from ai.presence import maybe_reply_in_channel
+        maybe_reply_in_channel(server["id"], channel_id, user_id, body)
 
 
 @socketio.on("srv_delete")

@@ -1,0 +1,14 @@
+{# One pending thing Nova wants to do. Needs: a (a dict with id, kind, payload). #}
+<div class="nova-action" data-action="{{ a['id'] }}">
+  {% if a['kind'] == 'send_dm' %}
+    <div class="nova-action-head">✉️ Send to <b>@{{ a['payload']['username'] }}</b></div>
+    <div class="nova-action-body">{{ a['payload']['message'] }}</div>
+  {% elif a['kind'] == 'post_update' %}
+    <div class="nova-action-head">📣 Post update on <b>{{ a['payload']['title'] }}</b></div>
+    <div class="nova-action-body">{{ a['payload']['body'] }}</div>
+  {% endif %}
+  <div class="nova-action-buttons">
+    <button type="button" class="btn btn-sm btn-primary rounded-pill" data-decide="approve">Approve</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-decide="reject">Discard</button>
+  </div>
+</div>

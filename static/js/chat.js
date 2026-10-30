@@ -195,9 +195,18 @@ function showBar() {
   }
 }
 
+// The box wraps and grows with the text (up to 40vh, then scrolls inside itself) instead of
+// scrolling sideways forever.
+function resizeInput() {
+  if (!input) return;
+  input.style.height = "auto";
+  input.style.height = input.scrollHeight + "px";
+}
+input?.addEventListener("input", resizeInput);
+
 function clearComposer(keepText) {
   replyTo = editing = null;
-  if (!keepText && input) input.value = "";
+  if (!keepText && input) { input.value = ""; resizeInput(); }
   showBar();
 }
 
@@ -215,7 +224,15 @@ if (form) {
     }
     clearComposer(false);
   });
-  input.addEventListener("keydown", (event) => { if (event.key === "Escape") clearComposer(editing === null); });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      clearComposer(editing === null);
+    } else if (event.key === "Enter" && !event.shiftKey) {
+      if (event.defaultPrevented) return;   // server.js's slash/mention popup already acted on this Enter
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
 }
 
 // ---------- right-click (or long-press) menu on a message ----------
@@ -300,6 +317,7 @@ menu.addEventListener("click", (event) => {
     editing = { id: id };
     const eb = row.querySelector(".msg-body");
     input.value = eb.dataset.raw ?? eb.textContent;
+    resizeInput();
     showBar();
     input.focus();
   } else if (act === "delete") {
@@ -360,6 +378,7 @@ if (form && fileInput && panel) {
     const start = input.selectionStart ?? input.value.length;
     const end = input.selectionEnd ?? input.value.length;
     input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+    resizeInput();
     input.focus();
     input.setSelectionRange(start + emoji.length, start + emoji.length);
   });

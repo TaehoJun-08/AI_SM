@@ -68,6 +68,12 @@ CATALOG = {
                      "funding": ("Community goal and top-funded projects", "")},
         "config": [("channel", "Where to cheer for new sponsors", "channel", "", "Leave empty to use #announcements")],
     },
+    "nova": {
+        "name": "Nova", "emoji": "✨", "color": "#8b5cf6",
+        "blurb": "The platform's AI, dropped into this server. Ask it anything about a project or how things are going here.",
+        "commands": {"ask": ("Ask Nova a question (answered here, for everyone to see)", "<question>")},
+        "config": [],
+    },
     "guard": {
         "name": "Guard", "emoji": "🛡️", "color": "#ef4444",
         "blurb": "Auto-moderation: blocks chosen words, link spam and mention floods. Managers are exempt.",
@@ -480,11 +486,25 @@ def cmd_status(ctx):
     say(ctx, embed=embed)
 
 
+# ----- Nova -----
+def cmd_ask(ctx):
+    if not ctx.args.strip():
+        return whisper(ctx, "Ask something, e.g. /ask would a free-sponsor pledge suit an idea-stage project?")
+    project_context = None
+    if ctx.server["project_id"]:
+        row = ctx.db.execute("SELECT title FROM projects WHERE id = ?", (ctx.server["project_id"],)).fetchone()
+        project_context = row["title"] if row else None
+    from ai.gemini import ask_in_server
+    from ai.presence import history_text
+    answer = ask_in_server(ctx.db, ctx.args, project_context, history_text(ctx.db, ctx.channel))
+    say(ctx, embed={"title": "✨ Nova", "description": answer, "color": "#8b5cf6", "footer": f"asked by @{ctx.username}"})
+
+
 HANDLERS = {("scout", "status"): cmd_status, ("herald", "rules"): cmd_rules, ("herald", "welcome"): cmd_welcome, ("dicey", "roll"): cmd_roll,
             ("dicey", "coin"): cmd_coin, ("dicey", "8ball"): cmd_8ball, ("dicey", "choose"): cmd_choose,
             ("pollster", "poll"): cmd_poll, ("nudge", "remind"): cmd_remind, ("nudge", "reminders"): cmd_reminders,
             ("sparks", "rank"): cmd_rank, ("sparks", "top"): cmd_top, ("scout", "pitch"): cmd_pitch,
-            ("scout", "funding"): cmd_funding}
+            ("scout", "funding"): cmd_funding, ("nova", "ask"): cmd_ask}
 
 
 # ---------- your own companions: call their webhook when someone uses a command ----------

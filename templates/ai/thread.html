@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Nova{% endblock %}
+{% block content %}
+<div class="dm-shell has-thread">
+  <section class="dm-main">
+    <header class="dm-head">
+      <span class="nova-avatar">✨</span>
+      <div class="lh-sm">
+        <strong>Nova</strong><br>
+        <small class="muted">{{ 'Your AI assistant' if connected else 'Not connected yet' }}</small>
+      </div>
+      {% if facts %}
+      <div class="dropdown ms-auto">
+        <button type="button" class="icon-btn" data-bs-toggle="dropdown" title="What Nova remembers about you">🧠</button>
+        <ul class="dropdown-menu dropdown-menu-end nova-memory">
+          {% for f in facts %}
+          <li class="nova-fact">
+            <span>{{ f['fact'] }}</span>
+            <button type="button" class="nova-forget" data-forget="{{ f['id'] }}" title="Forget this">&times;</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </header>
+
+    {% if not connected %}
+    <div class="chat-note">Nova isn't connected yet. Get a free API key from Google AI Studio and add
+      <code>GEMINI_API_KEY=...</code> to your <code>.env</code> file, then restart the app.</div>
+    {% endif %}
+
+    <div class="chat-log dm-log" id="nova-log">
+      {% for m in messages %}
+        <div class="msg {{ 'mine' if m['role'] == 'user' }}" data-id="{{ m['id'] }}" data-role="{{ m['role'] }}">
+          <div class="msg-main">
+            {% if m['attachment'] and m['attach_type'] == 'image' %}
+              <div class="msg-att"><img class="att-img" src="{{ url_for('static', filename=m['attachment']) }}" alt=""></div>
+            {% endif %}
+            {% if m['body'] %}<div class="msg-body">{{ m['body'] }}</div>{% endif %}
+            {% if m['role'] == 'user' %}<button type="button" class="nova-edit-btn" title="Edit this message">✎</button>{% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="chat-empty">
+          <div class="empty-ring">✨</div>
+          <h5 class="mb-1">Say hello to Nova</h5>
+          <p class="muted mb-0">Ask it to draft a pitch, explain a deal, check how your project compares, or just talk things through.</p>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div id="nova-actions" class="nova-actions">
+      {% for a in actions %}{% include "ai/_action.html" %}{% endfor %}
+    </div>
+
+    <div class="nova-preview" id="nova-preview" hidden>
+      <img id="nova-preview-img" alt="">
+      <span id="nova-preview-name"></span>
+      <button type="button" id="nova-preview-clear" aria-label="Remove">&times;</button>
+    </div>
+
+    <form class="nova-form" id="nova-form" data-send="{{ url_for('ai.send') }}">
+      <label class="nova-attach-btn" title="Attach an image">
+        📎<input type="file" id="nova-file" accept="image/*" hidden>
+      </label>
+      <textarea id="nova-input" rows="1" placeholder="Message Nova…" maxlength="4000"></textarea>
+      <button type="submit" class="btn btn-primary rounded-pill px-4" id="nova-send-btn">Send</button>
+      <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="nova-stop-btn" hidden>Stop</button>
+    </form>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='js/nova.js') }}"></script>
+{% endblock %}

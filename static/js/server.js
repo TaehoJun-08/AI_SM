@@ -423,6 +423,7 @@
     const item = items[i];
     if (!item) return;
     input.value = input.value.slice(0, token.start) + item.text + input.value.slice(token.end);
+    resizeInput();
     const pos = token.start + item.text.length;
     input.setSelectionRange(pos, pos);
     input.focus();

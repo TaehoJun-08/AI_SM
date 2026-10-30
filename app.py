@@ -14,6 +14,7 @@ from dms.routes import dms_bp
 from reports.routes import reports_bp
 from profiles.routes import profiles_bp
 from settings.routes import settings_bp
+from ai.routes import ai_bp
 from extensions import socketio
 from servers.botapi import api_bp
 import unread
@@ -41,6 +42,7 @@ app.register_blueprint(profiles_bp)
 app.register_blueprint(settings_bp)
 from sponsormatch.routes import match_bp
 app.register_blueprint(match_bp)
+app.register_blueprint(ai_bp)
 app.register_blueprint(api_bp)
 from servers.projectlink import proj_bp
 app.register_blueprint(proj_bp)
