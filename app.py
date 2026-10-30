@@ -39,8 +39,8 @@ app.register_blueprint(dms_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(profiles_bp)
 app.register_blueprint(settings_bp)
-from ai.routes import ai_bp
-app.register_blueprint(ai_bp)
+from sponsormatch.routes import match_bp
+app.register_blueprint(match_bp)
 app.register_blueprint(api_bp)
 from servers.projectlink import proj_bp
 app.register_blueprint(proj_bp)

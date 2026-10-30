@@ -1,10 +1,10 @@
-﻿import csv, json, os, re, time
+import csv, json, os, re, time
 from flask import Blueprint, abort, jsonify, render_template_string, request
 from openai import OpenAI
 from db import get_db
 from helpers import current_user
 
-ai_bp = Blueprint("ai", __name__, url_prefix="/ai")
+match_bp = Blueprint("sponsor_match", __name__, url_prefix="/sponsor-match")
 
 MODEL = os.getenv("AI_MODEL", "gemini-3.8-flash")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "sponsors.csv")
@@ -101,7 +101,7 @@ def shortlist(p, owner_id, n=8):
     return cands[:n]
 
 
-@ai_bp.post("/project/<int:pid>/questions")
+@match_bp.post("/project/<int:pid>/questions")
 def questions(pid):
     p = my_project(pid)
     data = ask_json(
@@ -117,7 +117,7 @@ def questions(pid):
     return jsonify([str(q) for q in data][:3])
 
 
-@ai_bp.post("/project/<int:pid>/match")
+@match_bp.post("/project/<int:pid>/match")
 def match(pid):
     p = my_project(pid)
     user = current_user()
@@ -176,7 +176,7 @@ PAGE = r"""<!doctype html>
 var PID = {{ pid }};
 
 function post(path, body) {
-  return fetch("/ai/project/" + PID + path, {
+  return fetch("/sponsor-match/project/" + PID + path, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body || {})
@@ -251,7 +251,7 @@ function show(list) {
 </body></html>"""
 
 
-@ai_bp.get("/project/<int:pid>")
+@match_bp.get("/project/<int:pid>")
 def page(pid):
     p = my_project(pid)
     return render_template_string(PAGE, pid=pid, title=p["title"])
