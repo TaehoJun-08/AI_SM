@@ -31,6 +31,7 @@
           <li><hr class="dropdown-divider"></li>
           <li><form method="POST" action="{{ url_for('servers.leave', server_id=sid) }}"
                     onsubmit="return confirm('Leave this server?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="dropdown-item text-danger">Leave Server</button></form></li>
         {% endif %}
       </ul>
@@ -130,6 +131,7 @@
             <details class="pitch-new" {{ 'open' if not posts }}>
               <summary>💡 Share a pitch</summary>
               <form method="POST" action="{{ url_for('servers.new_pitch', server_id=sid, channel_id=current['id']) }}" class="set-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Title</label><input name="title" maxlength="80" required placeholder="What are you building?">
                 <label>The idea</label><textarea name="body" rows="4" maxlength="1500" required placeholder="Who is it for, what stage is it at, what help do you need?"></textarea>
                 <label>Looking for (₹, optional)</label><input name="ask" type="number" min="1" placeholder="e.g. 50000">

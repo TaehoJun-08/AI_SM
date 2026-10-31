@@ -27,6 +27,7 @@
           <b>{{ p.username }}</b><br><small class="muted">{{ p.full_name }}</small></a>
         {% if p.id != user['id'] %}
           <form method="POST" action="{{ url_for('dms.start', user_id=p.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-sm btn-primary">Message</button></form>
         {% endif %}
       </div>

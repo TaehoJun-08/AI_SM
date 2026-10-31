@@ -19,6 +19,7 @@
         </div>
       {% endif %}
       <form method="POST" class="text-start mt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="srv-muted small mb-1">Server name</label>
         <input class="form-control mb-3" name="name" maxlength="40" value="{{ project['title'][:40] }}" required autofocus>
         <button class="srv-btn w-100">Create the server ✨</button>

@@ -259,7 +259,7 @@
 .post-time, .post-sub { color: var(--muted); font-size: .8rem; }
 
 .post-media { position: relative; background: var(--raised); border-radius: 1.1rem; overflow: hidden; user-select: none; }
-.post-media img, .post-media video { display: block; width: 100%; max-height: 600px; object-fit: cover; }
+.post-media img, .post-media video { display: block; width: 100%; height: auto; max-height: 700px; object-fit: contain; }
 .post-media.square { border-radius: 0; height: 100%; }
 .post-media.square img, .post-media.square video { height: 100%; max-height: none; object-fit: contain; background: rgba(0, 0, 0, .85); }
 .video-sound { position: absolute; right: 12px; bottom: 12px; background: rgba(0, 0, 0, .55); border: 0; color: #fff; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
@@ -561,7 +561,8 @@ dialog.modal-card::backdrop { background: rgba(20, 8, 50, .6); backdrop-filter: 
 .avatar-x img, .avatar-sm img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
 
 /* ---------- Carousel for posts with several photos/videos ---------- */
-.slides { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; height: 100%; }
+.slides { display: flex; align-items: flex-start; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; height: 100%; }
+.post-media.square .slides { align-items: stretch; }
 .slides::-webkit-scrollbar { display: none; }
 .slide { flex: 0 0 100%; scroll-snap-align: center; position: relative; min-width: 0; }
 .slide img, .slide video { width: 100%; }

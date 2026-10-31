@@ -1,0 +1,23 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Choose a new password · Sponsorship Matchmaker{% endblock %}
+{% block form %}
+{% if expired %}
+<h3 class="fw-bold mb-1">This link has expired</h3>
+<p class="text-muted mb-4">Reset links only last 30 minutes, and work once. Ask for a new one.</p>
+<a class="btn btn-primary w-100" href="{{ url_for('auth.forgot') }}">Send a new link</a>
+{% else %}
+<h3 class="fw-bold mb-1">Choose a new password</h3>
+<p class="text-muted mb-4">Pick something you haven't used elsewhere.</p>
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="mb-4">
+    <label class="form-label">New password</label>
+    <input name="password" type="password" class="form-control" minlength="6" required autofocus>
+  </div>
+  <button class="btn btn-primary w-100">Change password</button>
+</form>
+{% endif %}
+<p class="text-center mt-4 mb-0 small">
+  <a href="{{ url_for('auth.login') }}">Back to login</a>
+</p>
+{% endblock %}

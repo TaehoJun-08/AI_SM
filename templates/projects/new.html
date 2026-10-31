@@ -4,6 +4,7 @@
 {% block content %}
 <div class="create-page">
   <form method="POST" enctype="multipart/form-data" class="create-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="create-head">
       <b>{{ 'Edit post' if project else 'Create new post' }}</b>
       <button class="link-btn">{{ 'Save' if project else 'Share' }}</button>

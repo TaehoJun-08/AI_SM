@@ -1,3 +1,23 @@
+// Every logged-in page loads this first -- patch fetch() once so every POST/PUT/PATCH/DELETE call
+// anywhere in the app (chat, feed, servers, nova, sponsor match) carries the CSRF header automatically,
+// instead of every caller having to remember to add it.
+(function () {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const token = meta && meta.content;
+  const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+  const originalFetch = window.fetch;
+  window.fetch = function (input, init = {}) {
+    const method = (init.method || "GET").toUpperCase();
+    const url = typeof input === "string" ? input : input.url;
+    const sameOrigin = new URL(url, location.href).origin === location.origin;
+    if (token && sameOrigin && unsafeMethods.has(method)) {
+      init.headers = new Headers(init.headers || {});
+      if (!init.headers.has("X-CSRFToken")) init.headers.set("X-CSRFToken", token);
+    }
+    return originalFetch(input, init);
+  };
+})();
+
 // One socket for every logged-in page. The server pushes small events (see live.py) and this file
 // updates whatever part of the current page they touch, so nothing needs a refresh.
 const liveSocket = io();

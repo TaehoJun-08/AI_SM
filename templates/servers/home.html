@@ -35,6 +35,7 @@
         <h3>Customise your server</h3>
         <p class="dc-sub">Give your new server a name. You can add a photo for it afterwards in Server Settings.</p>
         <form method="POST" action="{{ url_for('servers.create') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Server name</label>
           <input name="name" maxlength="40" placeholder="e.g. Green Farm Labs" required>
           <label>Description</label>
@@ -51,6 +52,7 @@
         <h3>Join a server</h3>
         <p class="dc-sub">Enter an invite below to join an existing server.</p>
         <form method="POST" action="{{ url_for('servers.join_code') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label>Invite code <em>*</em></label>
           <input name="code" maxlength="8" placeholder="A1B2C3D4" required style="text-transform: uppercase" autocomplete="off">
           <p class="dc-hint">Invites look like <code>A1B2C3D4</code>. Find one in a server's name menu → Invite People.</p>
@@ -81,6 +83,7 @@
             {% set pct = [100, (s['raised'] * 100 // s['funding_needed'])]|min %}
             <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile proj-tile"
                   data-stage="{{ s['stage'] }}" data-domain="{{ s['domain'] }}" data-fund="{{ 'free' if (not s['accepts_money'] or s['accepts_pilot']) and pct < 100 else ('funded' if pct >= 100 else 'needs') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
               <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">💡</span>
               <span class="dc-stage">{{ s['stage'] }} · {{ s['domain'] }}</span>
@@ -103,6 +106,7 @@
       <div class="dc-grid">
         {% for s in explore %}
           <form method="POST" action="{{ url_for('servers.join_public', server_id=s['id']) }}" class="dc-tile">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="dc-banner" style="--c: {{ s['color'] }}"></div>
             <span class="srv-icon dc-tile-icon" style="--c: {{ s['color'] }}">{{ srv_icon(s) }}</span>
             <b>{{ s['name'] }}</b>

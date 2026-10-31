@@ -8,7 +8,7 @@ def mark_dm(thread_id, me):
     db = get_db()
     top = db.execute("SELECT COALESCE(MAX(id), 0) FROM dm_messages WHERE thread_id = ?", (thread_id,)).fetchone()[0]
     db.execute("""INSERT INTO dm_reads (thread_id, user_id, last_id) VALUES (?, ?, ?)
-                  ON CONFLICT (thread_id, user_id) DO UPDATE SET last_id = MAX(last_id, excluded.last_id)""",
+                  ON CONFLICT (thread_id, user_id) DO UPDATE SET last_id = GREATEST(dm_reads.last_id, excluded.last_id)""",
                (thread_id, me, top))
     db.commit()
     return top
@@ -18,7 +18,7 @@ def mark_channel(channel_id, me):
     db = get_db()
     top = db.execute("SELECT COALESCE(MAX(id), 0) FROM server_messages WHERE channel_id = ?", (channel_id,)).fetchone()[0]
     db.execute("""INSERT INTO channel_reads (channel_id, user_id, last_id) VALUES (?, ?, ?)
-                  ON CONFLICT (channel_id, user_id) DO UPDATE SET last_id = MAX(last_id, excluded.last_id)""",
+                  ON CONFLICT (channel_id, user_id) DO UPDATE SET last_id = GREATEST(channel_reads.last_id, excluded.last_id)""",
                (channel_id, me, top))
     db.commit()
 

@@ -2,6 +2,7 @@
 #Standard Libraries import
 import os
 import re
+from datetime import datetime
 
 #Third Party Library import
 from dotenv import load_dotenv
@@ -15,6 +16,21 @@ DB_DIR = os.path.join(BASE_DIR, "db")
 SCHEMA_PATH = os.path.join(DB_DIR, "schema.sql")
 load_dotenv(os.path.join(BASE_DIR, ".env"))   # every entry point needs DATABASE_URL -- don't rely on each one loading it first
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres@127.0.0.1:5432/postgres")
+
+# Postgres's own server process has its own TimeZone setting (defaults to GMT here), which has
+# nothing to do with this machine's local time -- unlike sqlite3, which never had a separate
+# server process and so never had this gotcha. Every LOCALTIMESTAMP / to_char(...) call in the
+# app's SQL (cooldowns, expiries, "N days ago" style timestamps) assumes it means *this computer's*
+# local time, so every connection is pinned to the OS's real UTC offset right away.
+_offset_minutes = int(datetime.now().astimezone().utcoffset().total_seconds() // 60)
+_sign = "+" if _offset_minutes >= 0 else "-"
+TZ_OFFSET = f"{_sign}{abs(_offset_minutes) // 60:02d}:{abs(_offset_minutes) % 60:02d}"
+
+
+def _pin_local_timezone(conn):
+    cur = conn.cursor()
+    cur.execute(f"SET TIME ZONE INTERVAL '{TZ_OFFSET}' HOUR TO MINUTE")
+    conn.commit()
 
 # A new TCP connection per request is expensive under real concurrency (Postgres forks a
 # backend process per connection) -- every per-request get_db() call borrows one of these
@@ -95,7 +111,13 @@ class Connection:
         if wants_returning:
             translated = translated.rstrip().rstrip(";") + " RETURNING id"
         cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(translated, params)
+        # Passing even an empty params tuple makes psycopg2 treat the query as a %-format string,
+        # which breaks on a literal "%" (e.g. a LIKE pattern with no bound parameter at all).
+        # sqlite3 never had this gotcha since it only binds "?", never %-interpolates.
+        if params:
+            cur.execute(translated, params)
+        else:
+            cur.execute(translated)
         lastrowid = None
         if wants_returning:
             row = cur.fetchone()
@@ -130,7 +152,9 @@ def open_connection():
     """A standalone connection, independent of any Flask request. Use this (not get_db)
     for background work that outlives the request -- Nova's streaming replies, the
     companion worker, and one-off scripts like seed_demo.py."""
-    return Connection(psycopg2.connect(DATABASE_URL))
+    conn = psycopg2.connect(DATABASE_URL)
+    _pin_local_timezone(conn)
+    return Connection(conn)
 
 
 def get_db():
@@ -140,7 +164,9 @@ def get_db():
         import time
         for attempt in range(50):
             try:
-                g.db = Connection(_pool.getconn(), pooled=True)
+                raw = _pool.getconn()
+                _pin_local_timezone(raw)   # cheap, and correct whether this connection is new or reused
+                g.db = Connection(raw, pooled=True)
                 break
             except psycopg2.pool.PoolError:
                 if attempt == 49:

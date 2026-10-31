@@ -54,6 +54,7 @@
   <div data-region="deal-form" data-live="engagement">
     {% if offer['status'] == 'pending' and your_turn %}
       <form method="POST" action="{{ url_for('deals.answer', interest_id=offer['id']) }}" class="deal-form" id="deal-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <h6 class="section-title mt-4">Your answer, part by part</h6>
         {% for part, title in [('money', '💰 Money'), ('goods', '🎁 Goods or services'), ('pilot', '🌱 Free sponsor')] %}
           {% if terms[part] %}
@@ -87,7 +88,8 @@
         Waiting for @{{ other['username'] }} to answer. You'll get a notification the moment they do.</div>
     {% elif offer['status'] == 'accepted' %}
       <div class="deal-wait done">🤝 This deal is agreed. <a href="{{ url_for('dms.inbox') }}">Open your chat</a> to plan the next steps.
-        {% if terms.money %}<br>🔒 The ₹{{ '{:,}'.format(terms.money) }} is locked in escrow and released milestone by milestone.
+        {% if terms.money %}<br>🔒 The ₹{{ '{:,}'.format(terms.money) }} is committed to escrow and released milestone by milestone.
+          <small class="muted d-block">Simulated — this tracks the pledge, no real payment has moved yet.</small>
           <a href="{{ url_for('feed.post', post_id=offer['project_id']) }}">See the milestones</a>{% endif %}</div>
     {% else %}
       <div class="deal-wait">This deal is closed.</div>

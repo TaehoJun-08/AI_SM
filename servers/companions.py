@@ -229,7 +229,7 @@ def on_message(db, server, channel, user_id):
         gain = random.randint(8, 15)
         before = row["xp"] if row else 0
         db.execute("""INSERT INTO member_xp (server_id, user_id, xp, last_at) VALUES (?, ?, ?, ?)
-                      ON CONFLICT(server_id, user_id) DO UPDATE SET xp = xp + ?, last_at = ?""",
+                      ON CONFLICT(server_id, user_id) DO UPDATE SET xp = member_xp.xp + ?, last_at = ?""",
                    (server["id"], user_id, gain, now, gain, now))
         db.commit()
         if level_of(before + gain) > level_of(before) and bot["cfg"].get("announce") in ("1", 1, True):

@@ -46,6 +46,7 @@
   {% else %}<p class="srv-muted">No upcoming events.</p>{% endfor %}
   {% if 'manage_events' in m.perms %}
     <form method="POST" action="{{ url_for('servers.add_event', server_id=server['id']) }}" class="set-form panel-form" data-ajax>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h6>New event</h6>
       <input type="hidden" name="ajax" value="1">
       <input name="title" placeholder="Pitch practice night" maxlength="80" required>

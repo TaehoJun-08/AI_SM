@@ -13,6 +13,7 @@
       <p class="endorse-summary">{{ e['summary'] }}</p>
       <p class="muted small">Confirming adds your name and college domain to the project, so sponsors know a mentor vouches for it.</p>
       <form method="POST" action="{{ url_for('verify.confirm_endorsement', token=token) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-primary rounded-pill px-4">Yes, I endorse this project</button>
       </form>
       <p class="muted small mt-3 mb-0">Don't know this project? Just close this page. Nothing happens.</p>

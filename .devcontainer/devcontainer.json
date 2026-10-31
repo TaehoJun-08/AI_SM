@@ -1,8 +1,10 @@
 {
   "name": "AI Sponsorship Matchmaker",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "postCreateCommand": "pip install -r requirements.txt && python seed_demo.py",
-  "forwardPorts": [5000],
+  "forwardPorts": [5000, 5432],
   "portsAttributes": {
     "5000": { "label": "App", "onAutoForward": "openBrowser" }
   },

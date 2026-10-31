@@ -10,12 +10,17 @@
     </div>
   </header>
 
+  {% if not connected %}
+  <div class="chat-note">AI sponsor matching isn't connected yet. Get a free API key from Google AI Studio and add
+    <code>GEMINI_API_KEY=...</code> to your <code>.env</code> file, then restart the app.</div>
+  {% endif %}
+
   <div class="match-body" id="match-body" data-pid="{{ pid }}">
     <div class="empty-state" id="match-start">
       <div class="empty-ring">✨</div>
       <h5 class="mb-1">Let's find your sponsors</h5>
       <p class="muted mb-3">Answer three quick questions, then we'll match you with the<br>best-fit sponsors and draft outreach emails you can send.</p>
-      <button type="button" class="btn btn-primary rounded-pill px-4" id="match-start-btn">Start</button>
+      <button type="button" class="btn btn-primary rounded-pill px-4" id="match-start-btn" {{ 'disabled' if not connected }}>Start</button>
     </div>
 
     <div class="match-qs" id="match-qs" hidden></div>

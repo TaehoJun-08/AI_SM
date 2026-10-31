@@ -1,6 +1,7 @@
 {% from "_icons.html" import icon %}
 <dialog id="sponsor-dialog" class="modal-card">
   <form method="POST" id="sponsor-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="modal-head">
       <h5 class="mb-0" id="sponsor-heading">Sponsor this project</h5>
       <button type="button" class="icon-btn" data-close-dialog aria-label="Close">{{ icon('x', 20) }}</button>

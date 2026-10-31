@@ -67,6 +67,7 @@
       {% if o.status in ['pending', 'accepted'] %}
         <form method="POST" action="{{ url_for('interests.withdraw', interest_id=o.id) }}"
               onsubmit="return confirm('{{ 'Withdraw this offer?' if o.status == 'pending' else 'Withdraw your sponsorship? The owner will be told in your chat.' }}')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-secondary btn-sm">Withdraw</button></form>
       {% endif %}
     </div>

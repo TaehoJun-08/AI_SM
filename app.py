@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, request, session, url_for
+from flask_wtf import CSRFProtect
 from db import close_db, get_db, init_db
 from helpers import current_user
 from auth.routes import auth_bp
@@ -29,6 +30,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY") or "dev-only-secret-key-change-me"
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # all files of one post together
 app.teardown_appcontext(close_db)
+csrf = CSRFProtect(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(feed_bp)
 app.register_blueprint(projects_bp)
@@ -42,6 +44,7 @@ app.register_blueprint(profiles_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(api_bp)
+csrf.exempt(api_bp)  # Companions authenticate with a bot token, not a session cookie -- no CSRF to protect against
 from sponsormatch.routes import match_bp
 app.register_blueprint(match_bp)
 from servers.projectlink import proj_bp

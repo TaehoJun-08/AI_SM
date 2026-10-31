@@ -15,6 +15,7 @@
   <div class="side-title">People</div>
   {% for p in people %}
     <form method="POST" action="{{ url_for('dms.start', user_id=p['id']) }}" class="dm-row">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {{ avatar(p['full_name'], p['avatar'], href=url_for('profiles.public', username=p['username']), uid=p['id']) }}
       <span class="dm-row-text">
         <b>{{ p['username'] }}</b><small class="muted">{{ p['full_name'] }}</small>

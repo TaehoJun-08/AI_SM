@@ -16,6 +16,7 @@
     {% if not p['is_bot'] %}<a class="srv-btn small" href="{{ url_for('profiles.public', username=p['username']) }}">View profile</a>{% endif %}
     {% if p['id'] == me %}
       <form method="POST" action="{{ url_for('servers.nickname', server_id=server['id'], user_id=me) }}" class="d-flex gap-1 mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="next" value="{{ next_url }}">
         <input name="nickname" value="{{ target.nickname or '' }}" placeholder="Nickname" maxlength="32">
         <button class="srv-btn small">Save</button>
@@ -26,16 +27,19 @@
     <details class="mc-mod"><summary>Moderate</summary>
       {% if acts.timeout %}
         <form method="POST" action="{{ url_for('servers.timeout', server_id=server['id'], user_id=p['id']) }}" class="d-flex gap-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="next" value="{{ next_url }}">
           <select name="minutes"><option value="5">5 min</option><option value="60">1 hour</option><option value="1440">1 day</option><option value="10080">1 week</option><option value="0">Lift timeout</option></select>
           <button class="srv-btn small">Timeout</button></form>
       {% endif %}
       {% if acts.kick %}
         <form method="POST" action="{{ url_for('servers.kick', server_id=server['id'], user_id=p['id']) }}" onsubmit="return confirm('Kick this member?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="next" value="{{ next_url }}"><button class="srv-btn small danger">Kick</button></form>
       {% endif %}
       {% if acts.ban %}
         <form method="POST" action="{{ url_for('servers.ban', server_id=server['id'], user_id=p['id']) }}" class="d-flex gap-1" onsubmit="return confirm('Ban this member?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="next" value="{{ next_url }}"><input name="reason" placeholder="Reason" maxlength="200">
           <button class="srv-btn small danger">Ban</button></form>
       {% endif %}

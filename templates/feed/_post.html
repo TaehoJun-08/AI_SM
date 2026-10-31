@@ -21,6 +21,7 @@
           <li><a class="dropdown-item" href="{{ url_for('reports.project', project_id=post.id) }}" target="_blank">PDF report</a></li>
           <li><form method="POST" action="{{ url_for('projects.delete', project_id=post.id) }}"
                     onsubmit="return confirm('Delete this post for good?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="dropdown-item text-danger">Delete</button></form></li>
         </ul>
       </div>
@@ -35,6 +36,7 @@
     <a class="icon-btn" href="{{ url_for('feed.post', post_id=post.id) }}" aria-label="Comments">{{ icon('comment', 26) }}</a>
     {% if not mine %}
       <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="icon-btn" aria-label="Message">{{ icon('send', 26) }}</button></form>
       {% include "feed/_sponsor_btn.html" %}
     {% else %}
@@ -48,7 +50,7 @@
     {% if post.accepts_money %}
     <div class="fund">
       <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
-      <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
+      <small>₹{{ '{:,}'.format(post.raised) }} pledged of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
 {% if mine %}<div style="margin-top:10px"><a href="{{ url_for('sponsor_match.page', pid=post.id) }}" style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#f97316);color:#fff;text-decoration:none;font-weight:600;font-size:14px">&#10024; Find sponsors with AI</a></div>{% endif %}
     </div>
     {% endif %}
@@ -57,6 +59,7 @@
     {% set chip = project_chip(post.id) %}
     {% if chip %}
       <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}" class="px-3 pb-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="proj-chip" title="Open the project server">💬 {{ chip.members }} member{{ '' if chip.members == 1 else 's' }}{% if chip.last %} · last update {{ chip.last }}{% endif %} · {{ chip.stage }}</button></form>
     {% endif %}
   </div>

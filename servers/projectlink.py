@@ -304,7 +304,8 @@ def milestones(db, project_id, got=None):
             state = "open"
         else:
             state = "review" if m["proof_at"] else "funded"
-        items.append(dict(m, state=state, share=max(m["amount"] - floor, 0)))
+        overdue = bool(state == "funded" and m["due_at"] and m["due_at"] < datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        items.append(dict(m, state=state, share=max(m["amount"] - floor, 0), overdue=overdue))
         floor = max(floor, m["amount"])
     return items
 
@@ -403,6 +404,7 @@ def add_milestone(project_id):
     project = owned(db, project_id)
     title = request.form.get("title", "").strip()[:60]
     amount = request.form.get("amount", type=int)
+    due_days = request.form.get("due_days", type=int)
     paid_up_to = db.execute("SELECT MAX(amount) FROM project_milestones WHERE project_id = ? AND released_at IS NOT NULL",
                             (project_id,)).fetchone()[0] or 0
     if not title or not amount or not 0 < amount <= project["funding_needed"]:
@@ -412,7 +414,12 @@ def add_milestone(project_id):
     elif db.execute("SELECT COUNT(*) FROM project_milestones WHERE project_id = ?", (project_id,)).fetchone()[0] >= MAX_MILESTONES:
         flash(f"A project can have up to {MAX_MILESTONES} milestones.")
     else:
-        db.execute("INSERT INTO project_milestones (project_id, title, amount) VALUES (?, ?, ?)", (project_id, title, amount))
+        due_at = None
+        if due_days and due_days > 0:
+            from datetime import timedelta
+            due_at = (datetime.now() + timedelta(days=min(due_days, 365))).strftime("%Y-%m-%d %H:%M:%S")
+        db.execute("INSERT INTO project_milestones (project_id, title, amount, due_at) VALUES (?, ?, ?, ?)",
+                   (project_id, title, amount, due_at))
         db.commit()
         check_milestones(db, project_id)
     live.touch(["posts"])

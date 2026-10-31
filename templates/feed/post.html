@@ -24,6 +24,7 @@
               <li><a class="dropdown-item" href="{{ url_for('reports.project', project_id=post.id) }}" target="_blank">PDF report</a></li>
               <li><form method="POST" action="{{ url_for('projects.delete', project_id=post.id) }}"
                         onsubmit="return confirm('Delete this post for good?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="dropdown-item text-danger">Delete</button></form></li>
             </ul>
           </div>
@@ -43,7 +44,7 @@
         {% if post.accepts_money %}
         <div class="fund">
           <div class="fund-bar"><i style="width: {{ pct }}%"></i></div>
-          <small>₹{{ '{:,}'.format(post.raised) }} raised of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
+          <small>₹{{ '{:,}'.format(post.raised) }} pledged of ₹{{ '{:,}'.format(post.funding_needed) }} goal</small>
 {% if mine %}<div style="margin-top:10px"><a href="{{ url_for('sponsor_match.page', pid=post.id) }}" style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#f97316);color:#fff;text-decoration:none;font-weight:600;font-size:14px">&#10024; Find sponsors with AI</a></div>{% endif %}
         </div>
         {% endif %}
@@ -53,10 +54,12 @@
           <div class="proj-row">
             {% if chip %}
               <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="proj-chip" title="Open the project server">💬 {{ chip.members }} member{{ '' if chip.members == 1 else 's' }}{% if chip.last %} · last update {{ chip.last }}{% endif %} · {{ chip.stage }}</button></form>
             {% endif %}
             {% if not mine %}
               <form method="POST" action="{{ url_for('projupdates.toggle_follow', project_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="proj-chip {{ 'on' if ex.following }}">{{ '🔔 Following' if ex.following else '＋ Follow' }} · {{ ex.followers }}</button></form>
             {% else %}
               <span class="proj-chip">👥 {{ ex.followers }} follower{{ '' if ex.followers == 1 else 's' }}</span>
@@ -75,6 +78,7 @@
                 <details class="ms-proof-form">
                   <summary>🎓 Ask a faculty mentor to endorse this</summary>
                   <form method="POST" action="{{ url_for('verify.ask_mentor', project_id=post.id) }}" class="ms-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input name="name" maxlength="60" placeholder="Prof. A. Sharma" required>
                     <input name="email" type="email" maxlength="120" placeholder="mentor@college.edu.in" required>
                     <button>Send</button>
@@ -89,23 +93,36 @@
           {% if ex.milestones or (mine and post.accepts_money) %}
             <h6 class="proj-h">🎯 Milestones</h6>
             {% if es.raised %}
-              <div class="escrow-sum" title="Sponsors' money is held in escrow and released milestone by milestone">
-                <span>🔒 <b>₹{{ '{:,}'.format(es.locked) }}</b> locked in escrow</span>
+              <div class="escrow-sum" title="Simulated: sponsors have committed this money, but no real payment has moved">
+                <span>🔒 <b>₹{{ '{:,}'.format(es.locked) }}</b> committed in escrow</span>
                 <span>💸 <b>₹{{ '{:,}'.format(es.released) }}</b> released</span>
               </div>
+              <small class="muted d-block mb-2">⚠️ Simulated escrow — these are accepted pledges, not deposited money. No real payment has moved yet.</small>
               {% if mine and es.uncovered %}
                 <small class="muted d-block mb-2">₹{{ '{:,}'.format(es.uncovered) }} isn't tied to a milestone yet. Add one to be able to unlock it.</small>
               {% endif %}
             {% elif mine and post.accepts_money %}
-              <small class="muted d-block mb-2">Sponsors' money is held in escrow and released one milestone at a time, after they approve your proof.</small>
+              <small class="muted d-block mb-2">Sponsors' pledges are tracked here and released one milestone at a time, after they approve your proof. (Simulated — no real payment moves.)</small>
             {% endif %}
             {% for m in ex.milestones %}
               <div class="ms {{ m.state }}">
                 <span class="ms-dot">{{ '✓' if m.state == 'released' else '' }}</span>
                 <span class="ms-title">{{ m.title }}</span>
-                <small title="Unlocks once ₹{{ '{:,}'.format(m.amount) }} is raised">₹{{ '{:,}'.format(m.share) }} · {{ m.text }}</small>
+                <small title="Unlocks once ₹{{ '{:,}'.format(m.amount) }} is pledged">₹{{ '{:,}'.format(m.share) }} · {{ m.text }}{% if m.due_at %} · due {{ m.due_at[:10] }}{% endif %}</small>
                 {% if mine and m.state in ['open', 'funded'] %}
-                  <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='delete') }}"><button class="ms-btn" title="Remove">✕</button></form>
+                  <form method="POST" action="{{ url_for('projupdates.milestone_action', project_id=post.id, milestone_id=m.id, action='delete') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="ms-btn" title="Remove">✕</button></form>
+                {% endif %}
+
+                {% if m.overdue %}
+                  <small class="ms-sent-back d-block">⚠️ Overdue — no proof submitted by {{ m.due_at[:10] }}.
+                    {% if es.backer and not mine %}You can withdraw your pledge below.{% endif %}</small>
+                  {% if es.backer and not mine %}
+                    <form method="POST" action="{{ url_for('escrow.withdraw', project_id=post.id) }}"
+                          onsubmit="return confirm('Withdraw your whole pledge from this project? This can\'t be undone.')">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="ms-btn ghost">↩ Withdraw my pledge</button></form>
+                  {% endif %}
                 {% endif %}
 
                 {% if m.state == 'review' %}
@@ -113,10 +130,12 @@
                     <p>{{ m.proof }}</p>
                     {% if m.proof_image %}<img src="{{ url_for('static', filename=m.proof_image) }}" alt="Proof for {{ m.title }}">{% endif %}
                     <div class="ms-vote-bar"><i class="yes" style="width: {{ m.yes }}%"></i><i class="no" style="width: {{ m.no }}%"></i></div>
-                    <small class="muted">{{ m.yes }}% of sponsor money approves · {{ m.no }}% wants more. Over 50% approving releases it.</small>
+                    <small class="muted">💰 {{ m.yes }}% of money approves, {{ m.no }}% wants more · 👥 {{ m.yes_people }}% of sponsors approve, {{ m.no_people }}% want more.
+                      Releases once over half of both sponsors AND money approve.</small>
                     {% for v in m.notes %}<small class="d-block">@{{ v.username }}: {{ v.note }}</small>{% endfor %}
                     {% if es.backer %}
                       <form method="POST" action="{{ url_for('escrow.vote', milestone_id=m.id) }}" class="ms-vote">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input name="note" maxlength="300" placeholder="Note (needed to send it back)">
                         <button name="vote" value="approve" class="{{ 'on' if m.my_vote == 'approve' }}">✅ Approve &amp; release</button>
                         <button name="vote" value="reject" class="ghost {{ 'on' if m.my_vote == 'reject' }}">↩ Send back</button>
@@ -130,6 +149,7 @@
                   <details class="ms-proof-form" {{ 'open' if m.state == 'funded' }}>
                     <summary>{{ '✏️ Update the proof' if m.state == 'review' else '📎 Submit proof to release ₹' ~ '{:,}'.format(m.share) }}</summary>
                     <form method="POST" action="{{ url_for('escrow.submit_proof', milestone_id=m.id) }}" enctype="multipart/form-data" class="upd-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <textarea name="proof" rows="2" maxlength="800" placeholder="What did you finish? Links, results, numbers…" required>{{ m.proof or '' }}</textarea>
                       <div class="d-flex gap-2 align-items-center"><input type="file" name="image" accept="image/*"><button>Send proof</button></div>
                     </form>
@@ -139,8 +159,10 @@
             {% endfor %}
             {% if mine and post.accepts_money and ex.milestones|length < 6 %}
               <form method="POST" action="{{ url_for('projupdates.add_milestone', project_id=post.id) }}" class="ms-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input name="title" maxlength="60" placeholder="What the money unlocks" required>
-                <input name="amount" type="number" min="1" max="{{ post.funding_needed }}" placeholder="₹ raised by then" title="The total raised when this milestone unlocks" required>
+                <input name="amount" type="number" min="1" max="{{ post.funding_needed }}" placeholder="₹ pledged by then" title="The total pledged when this milestone unlocks" required>
+                <input name="due_days" type="number" min="1" max="365" placeholder="Days to submit proof (optional)" title="If you don't submit proof in time, sponsors can withdraw">
                 <button>Add</button>
               </form>
             {% endif %}
@@ -150,6 +172,7 @@
             <h6 class="proj-h">📣 Updates</h6>
             {% if mine %}
               <form method="POST" action="{{ url_for('projupdates.add_update', project_id=post.id) }}" enctype="multipart/form-data" class="upd-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <textarea name="body" rows="2" maxlength="500" placeholder="Share progress with your followers…" required></textarea>
                 <div class="d-flex gap-2 align-items-center"><input type="file" name="image" accept="image/*"><button>Post update</button></div>
               </form>
@@ -159,7 +182,8 @@
                 <small class="muted">{{ u.created_at[:16] }}</small>
                 <p>{{ u.body }}</p>
                 {% if u.image %}<img src="{{ url_for('static', filename=u.image) }}" alt="">{% endif %}
-                {% if mine %}<form method="POST" action="{{ url_for('projupdates.delete_update', project_id=post.id, update_id=u.id) }}"><button class="ms-btn">Delete</button></form>{% endif %}
+                {% if mine %}<form method="POST" action="{{ url_for('projupdates.delete_update', project_id=post.id, update_id=u.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="ms-btn">Delete</button></form>{% endif %}
               </div>
             {% endfor %}
           {% endif %}
@@ -180,10 +204,12 @@
         {% set psid = project_server(post.id) %}
         {% if psid or mine %}
           <form method="POST" action="{{ url_for('servers.open_project', project_id=post.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="icon-btn proj-link" title="One server for this project: updates, questions and status">💬 {{ 'Project server' if psid else 'Create project server' }}</button></form>
         {% endif %}
         {% if not mine %}
           <form method="POST" action="{{ url_for('dms.start', user_id=post.innovator_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="icon-btn">{{ icon('send', 26) }}</button></form>
           {% include "feed/_sponsor_btn.html" %}
         {% endif %}

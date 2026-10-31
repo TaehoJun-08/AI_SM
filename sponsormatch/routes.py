@@ -6,15 +6,22 @@ from helpers import current_user
 
 match_bp = Blueprint("sponsor_match", __name__, url_prefix="/sponsor-match")
 
-MODEL = os.getenv("AI_MODEL", "gemini-3.8-flash")
+MODEL = os.getenv("AI_MODEL", "gemini-flash-latest")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "sponsors.csv")
 _client = None
+
+
+def available():
+    return bool(os.getenv("GEMINI_API_KEY"))
 
 
 def client():
     # created on first use, after app.py has loaded .env
     global _client
     if _client is None:
+        if not available():
+            raise RuntimeError("AI sponsor matching needs a free GEMINI_API_KEY (from Google AI Studio) "
+                                "in the .env file.")
         _client = OpenAI(
             api_key=os.environ["GEMINI_API_KEY"],
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -104,6 +111,9 @@ def shortlist(p, owner_id, n=8):
 @match_bp.post("/project/<int:pid>/questions")
 def questions(pid):
     p = my_project(pid)
+    if not available():
+        return jsonify(error="AI sponsor matching needs a free GEMINI_API_KEY (from Google AI Studio) "
+                              "in the .env file."), 503
     data = ask_json(
         "A student is looking for sponsors for this project.\n"
         "Title: %s\nSummary: %s\nDescription: %s\nDomain: %s | Stage: %s | Funding needed: %s\n\n"
@@ -120,6 +130,9 @@ def questions(pid):
 @match_bp.post("/project/<int:pid>/match")
 def match(pid):
     p = my_project(pid)
+    if not available():
+        return jsonify(error="AI sponsor matching needs a free GEMINI_API_KEY (from Google AI Studio) "
+                              "in the .env file."), 503
     user = current_user()
     answers = str((request.get_json(silent=True) or {}).get("answers", ""))[:2000]
     cands = shortlist(p, user["id"])
@@ -157,4 +170,4 @@ def match(pid):
 @match_bp.get("/project/<int:pid>")
 def page(pid):
     p = my_project(pid)
-    return render_template("sponsormatch/page.html", pid=pid, title=p["title"])
+    return render_template("sponsormatch/page.html", pid=pid, title=p["title"], connected=available())

@@ -44,8 +44,10 @@
       <div class="chat-note d-flex align-items-center gap-2 flex-wrap">
         <span><b>{{ other['username'] }}</b> ({{ other['full_name'] }}) wants to message you.</span>
         <form method="POST" action="{{ url_for('dms.respond', thread_id=thread['id'], action='accept') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-primary btn-sm">Accept</button></form>
         <form method="POST" action="{{ url_for('dms.respond', thread_id=thread['id'], action='decline') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-sm btn-outline-secondary">Decline</button></form>
       </div>
     {% else %}

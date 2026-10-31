@@ -11,14 +11,15 @@ from servers import projectlink
 
 escrow_bp = Blueprint("escrow", __name__, url_prefix="/escrow")
 
-STATE_TEXT = {"open": "not funded yet", "funded": "🔒 locked, waiting for proof", "review": "🔍 sponsors are reviewing the proof",
+STATE_TEXT = {"open": "not pledged yet", "funded": "🔒 committed, waiting for proof", "review": "🔍 sponsors are reviewing the proof",
               "released": "💸 released"}
 
 
 def backers(db, project_id):
-    """{sponsor id: rupees} for every agreed deal with money in it."""
-    return {r["sponsor_id"]: r["amount"] for r in db.execute(
-        "SELECT sponsor_id, amount FROM interests WHERE project_id = ? AND status = 'accepted' AND amount > 0",
+    """{sponsor id: rupees} for every agreed deal on this project. Goods/pilot-only sponsors are
+    included too (amount 0) -- they still get a vote on proof, just no money weight behind it."""
+    return {r["sponsor_id"]: (r["amount"] or 0) for r in db.execute(
+        "SELECT sponsor_id, amount FROM interests WHERE project_id = ? AND status = 'accepted'",
         (project_id,))}
 
 
@@ -27,15 +28,21 @@ def percent(part, whole):
 
 
 def ledger(db, project_id, me):
-    """Everything the post page shows about the escrow: the totals, and each milestone with its vote so far."""
+    """Everything the post page shows about the escrow: the totals, and each milestone with its vote so far.
+    Release needs a majority of sponsors AND a majority of the money (see vote()) -- both percentages are
+    shown so nobody's surprised by which one is still missing."""
     money = backers(db, project_id)
     total = sum(money.values())
+    n_backers = len(money)
     items = projectlink.milestones(db, project_id, total)
     for m in items:
         votes = db.execute("""SELECT v.*, u.username FROM milestone_votes v JOIN users u ON u.id = v.sponsor_id
                               WHERE v.milestone_id = ? ORDER BY v.created_at""", (m["id"],)).fetchall()
-        m["yes"] = percent(sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "approve"), total)
-        m["no"] = percent(sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "reject"), total)
+        approve, reject = [v for v in votes if v["vote"] == "approve"], [v for v in votes if v["vote"] == "reject"]
+        m["yes"] = percent(sum(money.get(v["sponsor_id"], 0) for v in approve), total)
+        m["no"] = percent(sum(money.get(v["sponsor_id"], 0) for v in reject), total)
+        m["yes_people"] = percent(len(approve), n_backers)
+        m["no_people"] = percent(len(reject), n_backers)
         m["my_vote"] = next((v["vote"] for v in votes if v["sponsor_id"] == me), None)
         m["notes"] = [v for v in votes if v["note"]]
         m["text"] = STATE_TEXT[m["state"]]
@@ -107,7 +114,9 @@ def submit_proof(milestone_id):
 @escrow_bp.route("/milestone/<int:milestone_id>/vote", methods=["POST"])
 @login_required
 def vote(milestone_id):
-    """A sponsor with money in the project approves the proof or sends it back. Votes count by money given."""
+    """Every accepted sponsor on the project (money, goods or pilot) gets one vote on the proof. Releasing
+    needs BOTH a majority of sponsors AND a majority of the money -- so neither a single big backer nor a
+    crowd of small ones can decide alone."""
     db = get_db()
     me = session["user_id"]
     milestone = load(db, milestone_id)
@@ -127,20 +136,53 @@ def vote(milestone_id):
                   ON CONFLICT (milestone_id, sponsor_id) DO UPDATE SET vote = excluded.vote, note = excluded.note,
                   created_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')""", (milestone_id, me, choice, note))
     db.commit()
-    total = sum(money.values())
+    total_money = sum(money.values())
+    total_people = len(money)
     votes = db.execute("SELECT sponsor_id, vote, note FROM milestone_votes WHERE milestone_id = ?", (milestone_id,)).fetchall()
-    yes = sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "approve")
-    no = sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "reject")
-    if yes * 2 > total:
+    yes_money = sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "approve")
+    no_money = sum(money.get(v["sponsor_id"], 0) for v in votes if v["vote"] == "reject")
+    yes_people = sum(1 for v in votes if v["vote"] == "approve")
+    no_people = sum(1 for v in votes if v["vote"] == "reject")
+    money_approves, people_approve = yes_money * 2 > total_money, yes_people * 2 > total_people
+    money_rejects, people_reject = no_money * 2 >= total_money, no_people * 2 >= total_people
+    if money_approves and people_approve:
         release(db, milestone, m["share"])
-        flash(f"Approved. ₹{m['share']:,} was released to the creator. 💸")
-    elif no * 2 >= total:
+        flash(f"Approved by both sponsors and money. ₹{m['share']:,} was released to the creator. 💸")
+    elif money_rejects or people_reject:
         send_back(db, milestone, [v["note"] for v in votes if v["vote"] == "reject" and v["note"]])
         flash("The proof went back to the creator with your notes.")
     else:
-        flash("Your vote is in. The money is released once sponsors holding more than half of it approve.")
+        flash("Your vote is in. It releases once more than half of all sponsors AND more than half of the money approve.")
     live.touch(["posts"])
     return projectlink.back_to_post(milestone["project_id"])
+
+
+@escrow_bp.route("/project/<int:project_id>/withdraw", methods=["POST"])
+@login_required
+def withdraw(project_id):
+    """A sponsor reclaims a stuck pledge: a milestone went overdue with no proof ever submitted, and
+    nothing has reached review or been paid out yet, so withdrawing can't undo anyone else's approval."""
+    db = get_db()
+    me = session["user_id"]
+    items = projectlink.milestones(db, project_id)
+    overdue = any(m["overdue"] for m in items)
+    moving = any(m["state"] in ("review", "released") for m in items)
+    if not overdue or moving:
+        flash("A pledge can only be withdrawn once a milestone is overdue and nothing has been proven or paid out yet.")
+        return projectlink.back_to_post(project_id)
+    interest = db.execute("SELECT id FROM interests WHERE sponsor_id = ? AND project_id = ? AND status = 'accepted'",
+                          (me, project_id)).fetchone()
+    if interest is None:
+        abort(404)
+    db.execute("UPDATE interests SET status = 'withdrawn' WHERE id = ?", (interest["id"],))
+    db.commit()
+    project = db.execute("SELECT title, innovator_id FROM projects WHERE id = ?", (project_id,)).fetchone()
+    live.notify([project["innovator_id"]], "activity", "↩️ A pledge was withdrawn",
+                f"A sponsor pulled their pledge from “{project['title']}” after a milestone went overdue with no proof submitted.",
+                f"/p/{project_id}")
+    live.touch(["posts"])
+    flash("Your pledge was withdrawn. 👋")
+    return projectlink.back_to_post(project_id)
 
 
 def release(db, milestone, share):

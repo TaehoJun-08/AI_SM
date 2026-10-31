@@ -22,17 +22,20 @@
           <div>
             <p class="muted mb-2">Your photo shows on your posts, messages and servers. We crop it to a circle.</p>
             <form method="POST" action="{{ url_for('settings.save_photo') }}" enctype="multipart/form-data" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <label class="btn btn-primary btn-sm mb-0">Upload photo
                 <input type="file" name="photo" accept="image/*" hidden onchange="this.form.submit()"></label>
             </form>
             {% if user['avatar'] %}
               <form method="POST" action="{{ url_for('settings.save_photo') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button name="remove" value="1" class="btn btn-secondary btn-sm">Remove</button></form>
             {% endif %}
           </div>
         </div>
 
         <form method="POST" action="{{ url_for('settings.save_profile') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="row g-3 mb-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="full_name">Name</label>
@@ -61,6 +64,7 @@
         <button type="button" class="btn btn-secondary btn-sm mb-3" data-start-tour>✨ Replay the welcome tour</button>
         <p class="muted">Changes show instantly. Press Save to keep them on every device.</p>
         <form method="POST" action="{{ url_for('settings.save_appearance') }}" id="appearance-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form" value="1">
 
           <label class="set-label">Theme</label>
@@ -122,6 +126,7 @@
       {% elif tab == 'privacy' %}
         <h5>Privacy</h5>
         <form method="POST" action="{{ url_for('settings.save_privacy') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="set-label">Who can start a chat with you?</label>
           <label class="switch-row">
             <input type="radio" name="dm_policy" value="everyone" {{ 'checked' if user['dm_policy'] == 'everyone' }}>
@@ -150,6 +155,7 @@
           </div>
           <p class="muted mt-3">The ✓ shows next to your name on your posts and profile, so sponsors know you're a real student.</p>
           <form method="POST" action="{{ url_for('verify.remove') }}" onsubmit="return confirm('Remove your college email and the ✓ badge?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline-secondary btn-sm">Remove</button>
           </form>
         {% else %}
@@ -157,6 +163,7 @@
             Sponsors trust verified students more. We only use it for this badge.</p>
           <label class="set-label">1 · Your college email</label>
           <form method="POST" action="{{ url_for('verify.send_code') }}" class="d-flex gap-2 flex-wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="email" type="email" class="form-control" style="max-width: 320px" maxlength="120"
                    placeholder="you@college.edu.in" value="{{ code['email'] if code }}" required>
             <button class="btn btn-primary">{{ 'Send a new code' if code else 'Send code' }}</button>
@@ -164,6 +171,7 @@
           {% if code %}
             <label class="set-label">2 · The 6-digit code we emailed to {{ code['email'] }}</label>
             <form method="POST" action="{{ url_for('verify.check_code') }}" class="d-flex gap-2 flex-wrap">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input name="code" class="form-control code-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
                      placeholder="123456" autocomplete="one-time-code" required autofocus>
               <button class="btn btn-primary">Verify</button>
@@ -182,6 +190,7 @@
 
         <h6 class="mt-4">Change password</h6>
         <form method="POST" action="{{ url_for('settings.save_password') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="form-label fw-semibold" for="current_password">Current password</label>
           <input id="current_password" name="current_password" type="password" class="form-control mb-3" required>
           <div class="row g-3 mb-3">
@@ -206,6 +215,7 @@
           <p class="muted">This removes your profile, posts, messages and servers you own. It can't be undone.</p>
           <form method="POST" action="{{ url_for('settings.delete_account') }}" class="d-flex gap-2 flex-wrap"
                 onsubmit="return confirm('Delete your account for good?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="password" type="password" class="form-control" style="max-width: 260px" placeholder="Your password" required>
             <button class="btn btn-danger btn-sm">Delete my account</button>
           </form>

@@ -42,16 +42,19 @@
         <div>
           <p class="srv-muted mb-2">Your server's photo shows in the rail, invites and Explore. We crop it to a square.</p>
           <form method="POST" action="{{ url_for('servers.save_server_photo', server_id=sid) }}" enctype="multipart/form-data" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="srv-btn small">Upload photo
               <input type="file" name="photo" accept="image/*" hidden onchange="this.form.submit()"></label>
           </form>
           {% if server['avatar'] %}
             <form method="POST" action="{{ url_for('servers.save_server_photo', server_id=sid) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button name="remove" value="1" class="srv-btn small ghost">Remove</button></form>
           {% endif %}
         </div>
       </div>
       <form method="POST" action="{{ url_for('servers.save_overview', server_id=sid) }}" class="set-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="srv-row">
           <div class="grow"><label>Server name</label>
             <input name="name" value="{{ server['name'] }}" maxlength="40" required></div>
@@ -74,6 +77,7 @@
           <h5>Delete server</h5>
           <p class="srv-muted">This removes every channel and message for good. Type <b>{{ server['name'] }}</b> to confirm.</p>
           <form method="POST" action="{{ url_for('servers.delete', server_id=sid) }}" class="d-flex gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="confirm" placeholder="{{ server['name'] }}" class="flex-grow-1">
             <button class="srv-btn danger">Delete</button>
           </form>
@@ -88,6 +92,7 @@
       <details class="set-box">
         <summary>🌍 Powers everyone has</summary>
         <form method="POST" action="{{ url_for('servers.save_base_powers', server_id=sid) }}" class="set-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {{ powers(base_set, P) }}
           <button class="srv-btn small">Save</button>
         </form>
@@ -96,6 +101,7 @@
       <div class="set-box">
         <h5>Create a role</h5>
         <form method="POST" action="{{ url_for('servers.add_role', server_id=sid) }}" class="set-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="srv-row">
             <div class="grow"><input name="name" placeholder="New role name" maxlength="30" required></div>
             <div>{{ color_input('#e91e63') }}</div>
@@ -112,6 +118,7 @@
           <summary><span class="role-dot" style="background: {{ r['color'] }}"></span> {{ r['name'] }}
             {% if r['is_admin'] %}<span class="badge-owner">Administrator</span>{% endif %}</summary>
           <form method="POST" action="{{ url_for('servers.edit_role', server_id=sid, role_id=r['id']) }}" class="set-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="srv-row">
               <div class="grow"><input name="name" value="{{ r['name'] }}" maxlength="30" required {{ 'disabled' if not editable }}></div>
               <div>{{ color_input(r['color']) }}</div>
@@ -122,7 +129,8 @@
           </form>
           {% if editable %}
           <form method="POST" action="{{ url_for('servers.delete_role', server_id=sid, role_id=r['id']) }}"
-                onsubmit="return confirm('Delete this role?')" class="mt-2"><button class="srv-btn small danger">Delete role</button></form>
+                onsubmit="return confirm('Delete this role?')" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small danger">Delete role</button></form>
           {% endif %}
         </details>
       {% else %}
@@ -161,6 +169,7 @@
       <div class="set-box">
         <h5>Create a channel</h5>
         <form method="POST" action="{{ url_for('servers.add_channel', server_id=sid) }}" class="set-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {{ channel_form(none) }}
           <button class="srv-btn">Create channel</button>
         </form>
@@ -169,17 +178,20 @@
       <div class="set-box">
         <h5>Create a category</h5>
         <form method="POST" action="{{ url_for('servers.add_category', server_id=sid) }}" class="set-form inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input name="name" placeholder="Category name" maxlength="30" required>
           <button class="srv-btn">Create category</button>
         </form>
         {% for c in categories %}
           <div class="set-item">
             <form method="POST" action="{{ url_for('servers.edit_category', server_id=sid, category_id=c['id']) }}" class="set-form inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input name="name" value="{{ c['name'] }}" maxlength="30" required>
               <button class="srv-btn small">Rename</button>
             </form>
             <form method="POST" action="{{ url_for('servers.delete_category', server_id=sid, category_id=c['id']) }}"
-                  onsubmit="return confirm('Delete this category? Its channels are kept.')"><button class="srv-btn small danger">Delete</button></form>
+                  onsubmit="return confirm('Delete this category? Its channels are kept.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small danger">Delete</button></form>
           </div>
         {% endfor %}
       </div>
@@ -189,11 +201,13 @@
         <details class="set-box">
           <summary>{{ kinds[ch['kind']].split(' ')[0] }} {{ ch['name'] }}{% if ch['slowmode'] %} <small class="srv-muted">🐢 {{ ch['slowmode'] }}s</small>{% endif %}</summary>
           <form method="POST" action="{{ url_for('servers.edit_channel', server_id=sid, channel_id=ch['id']) }}" class="set-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {{ channel_form(ch) }}
             <div class="d-flex gap-2"><button class="srv-btn small">Save</button></div>
           </form>
           <form method="POST" action="{{ url_for('servers.delete_channel', server_id=sid, channel_id=ch['id']) }}"
                 onsubmit="return confirm('Delete #{{ ch['name'] }} and all its messages?')" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="srv-btn small danger">Delete channel</button></form>
         </details>
       {% endfor %}
@@ -213,6 +227,7 @@
               {% if t.timeout_until %}· ⏳ timed out until {{ t.timeout_until[11:16] }}{% endif %}</small></div>
           {% if 'manage_roles' in P and above and roles %}
             <form method="POST" action="{{ url_for('servers.set_member_roles', server_id=sid, user_id=p['id']) }}" class="set-form inline role-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {% for r in roles %}{% if m.is_manager or r['position'] < m.top %}
                 <label class="srv-check m-0"><input type="checkbox" name="role_ids" value="{{ r['id'] }}"
                   {{ 'checked' if r['id'] in member_roles.get(p['id'], []) }}>
@@ -224,16 +239,19 @@
           {% if above %}<div class="mem-actions">
             {% if 'timeout' in P %}
               <form method="POST" action="{{ url_for('servers.timeout', server_id=sid, user_id=p['id']) }}" class="d-flex gap-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="minutes"><option value="5">5 min</option><option value="60">1 h</option><option value="1440">1 day</option><option value="10080">1 week</option><option value="0">Lift</option></select>
                 <button class="srv-btn small">Timeout</button></form>
             {% endif %}
             {% if 'kick' in P %}
               <form method="POST" action="{{ url_for('servers.kick', server_id=sid, user_id=p['id']) }}"
-                    onsubmit="return confirm('Remove {{ p['username'] }} from the server?')"><button class="srv-btn small danger">Kick</button></form>
+                    onsubmit="return confirm('Remove {{ p['username'] }} from the server?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small danger">Kick</button></form>
             {% endif %}
             {% if 'ban' in P %}
               <form method="POST" action="{{ url_for('servers.ban', server_id=sid, user_id=p['id']) }}" class="d-flex gap-1"
-                    onsubmit="return confirm('Ban {{ p['username'] }}?')"><input name="reason" placeholder="Reason" maxlength="200" style="width: 120px">
+                    onsubmit="return confirm('Ban {{ p['username'] }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="reason" placeholder="Reason" maxlength="200" style="width: 120px">
                 <button class="srv-btn small danger">Ban</button></form>
             {% endif %}
           </div>{% endif %}
@@ -272,6 +290,7 @@
             {% if spec.commands %}<p>{% for name, (desc, usage) in spec.commands.items() %}<code>/{{ name }} {{ usage }}</code> {{ desc }}<br>{% endfor %}</p>{% endif %}
             {% if spec.config %}
               <form method="POST" action="{{ url_for('servers.config_companion', server_id=sid, bot_id=b['id']) }}" class="set-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for key, label, kind, default, help in spec.config %}
                   {% if kind == 'check' %}
                     <label class="srv-check"><input type="checkbox" name="{{ key }}" {{ 'checked' if b.cfg.get(key, default) in ('1', 1, true) }}> {{ label }}</label>
@@ -291,6 +310,7 @@
             {% endif %}
           {% elif b['kind'] == 'custom' %}
             <form method="POST" action="{{ url_for('servers.config_companion', server_id=sid, bot_id=b['id']) }}" class="set-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <label>Name</label><input name="name" value="{{ b['name'] }}" maxlength="30">
               <label>Interaction URL (we POST slash commands here)</label>
               <input name="interaction_url" value="{{ b['interaction_url'] }}" maxlength="300" placeholder="https://example.com/my-bot">
@@ -302,6 +322,7 @@
           {% endif %}
           {% if b['kind'] != 'webhook' %}
             <form method="POST" action="{{ url_for('servers.companion_channels', server_id=sid, bot_id=b['id']) }}" class="set-form mt-3">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <label><b>Where it works</b> <small class="srv-muted">— tick channels; none ticked means everywhere</small></label>
               <div class="d-flex flex-wrap gap-3">
                 {% for c in text_channels %}<label class="srv-check m-0"><input type="checkbox" name="channel_ids" value="{{ c['id'] }}"
@@ -313,9 +334,11 @@
           <div class="d-flex gap-2 mt-2">
             {% if b['kind'] in ('custom', 'webhook') %}
               <form method="POST" action="{{ url_for('servers.new_token', server_id=sid, bot_id=b['id']) }}" onsubmit="return confirm('The old token stops working. Continue?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="srv-btn small">New token</button></form>
             {% endif %}
             <form method="POST" action="{{ url_for('servers.remove_companion', server_id=sid, bot_id=b['id']) }}" onsubmit="return confirm('Remove {{ b['name'] }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="srv-btn small danger">Remove</button></form>
           </div>
         </details>
@@ -326,6 +349,7 @@
         {% for kind in available %}
           {% set spec = catalog[kind] %}
           <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="comp-card">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="kind" value="{{ kind }}">
             <span class="comp-ico" style="background: {{ spec.color }}">{{ spec.emoji }}</span>
             <b>{{ spec.name }}</b><p class="srv-muted">{{ spec.blurb }}</p>
@@ -337,6 +361,7 @@
       <h5 class="mt-4">Build your own</h5>
       <div class="srv-row" style="align-items: stretch">
         <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="set-box grow set-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="kind" value="custom">
           <h6>🤖 Custom companion (API)</h6>
           <label>Name</label><input name="name" maxlength="30" required placeholder="PitchCoach">
@@ -344,6 +369,7 @@
           <button class="srv-btn small">Create</button>
         </form>
         <form method="POST" action="{{ url_for('servers.add_companion', server_id=sid) }}" class="set-box grow set-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="kind" value="webhook">
           <h6>🔗 Webhook (post from other tools)</h6>
           <label>Name</label><input name="name" maxlength="30" required placeholder="GitHub updates">
@@ -379,6 +405,7 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
       <h3>Custom emoji</h3>
       <p class="srv-muted">Upload pictures under 512 KB. Members type <code>:name:</code> in chat or pick them from the emoji panel and as reactions.</p>
       <form method="POST" action="{{ url_for('servers.add_emoji', server_id=sid) }}" enctype="multipart/form-data" class="set-form inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input name="name" placeholder="name" maxlength="20" required>
         <input type="file" name="image" accept="image/png,image/gif,image/webp,image/jpeg" required>
         <button class="srv-btn">Upload</button>
@@ -386,7 +413,8 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
       <div class="emoji-grid">
         {% for e in emojis %}
           <div class="emoji-item"><img src="{{ url_for('static', filename=e['path']) }}" alt=""><code>:{{ e['name'] }}:</code>
-            <form method="POST" action="{{ url_for('servers.delete_emoji', server_id=sid, emoji_id=e['id']) }}"><button class="srv-btn small danger">Delete</button></form></div>
+            <form method="POST" action="{{ url_for('servers.delete_emoji', server_id=sid, emoji_id=e['id']) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small danger">Delete</button></form></div>
         {% else %}<p class="srv-muted">No custom emoji yet.</p>{% endfor %}
       </div>
 
@@ -397,11 +425,13 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
       <div class="invite-box">{{ server['invite_code'] }}</div>
       {% if 'manage_server' in P %}
         <form method="POST" action="{{ url_for('servers.reset_invite', server_id=sid) }}" class="mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="srv-btn">Make a new permanent code</button></form>
       {% endif %}
 
       <h5 class="mt-4">Invite links with limits</h5>
       <form method="POST" action="{{ url_for('servers.create_invite', server_id=sid) }}" class="set-form inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="hours"><option value="0">Never expires</option><option value="1">1 hour</option><option value="24">1 day</option><option value="168">7 days</option></select>
         <select name="max_uses"><option value="0">Unlimited uses</option><option value="1">1 use</option><option value="5">5 uses</option><option value="25">25 uses</option></select>
         <button class="srv-btn">Create link</button>
@@ -412,7 +442,8 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
             <small class="srv-muted">{{ i['uses'] }}{{ ' / ' ~ i['max_uses'] if i['max_uses'] }} uses · {{ 'expires ' ~ i['expires_at'][:16] if i['expires_at'] else 'never expires' }}</small></div>
           <button type="button" class="srv-btn small" onclick="navigator.clipboard.writeText('{{ request.host_url }}servers/invite/{{ i['code'] }}')">Copy</button>
           {% if 'manage_server' in P %}
-          <form method="POST" action="{{ url_for('servers.delete_invite', server_id=sid, code=i['code']) }}"><button class="srv-btn small danger">Revoke</button></form>{% endif %}
+          <form method="POST" action="{{ url_for('servers.delete_invite', server_id=sid, code=i['code']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small danger">Revoke</button></form>{% endif %}
         </div>
       {% endfor %}
 
@@ -421,6 +452,7 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
       <h3>Safety</h3>
       {% if 'manage_server' in P %}
       <form method="POST" action="{{ url_for('servers.save_safety', server_id=sid) }}" class="set-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Welcome note</label>
         <input name="welcome" value="{{ server['welcome'] }}" maxlength="300" placeholder="Shown to new members (and used by Herald). {user} and {server} work.">
         <label>Rules (members must agree before they can chat; leave empty for none)</label>
@@ -432,7 +464,8 @@ curl -X POST {{ request.host_url }}api/hooks/BOT_ID/TOKEN -H "Content-Type: appl
         <h5 class="mt-4">Banned people</h5>
         {% for b in bans %}
           <div class="set-item"><div class="grow"><b>@{{ b['username'] }}</b> <small class="srv-muted">{{ b['created_at'][:16] }} {{ '· ' ~ b['reason'] if b['reason'] }}</small></div>
-            <form method="POST" action="{{ url_for('servers.unban', server_id=sid, user_id=b['user_id']) }}"><button class="srv-btn small">Unban</button></form></div>
+            <form method="POST" action="{{ url_for('servers.unban', server_id=sid, user_id=b['user_id']) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="srv-btn small">Unban</button></form></div>
         {% else %}<p class="srv-muted">Nobody is banned.</p>{% endfor %}
       {% endif %}
       <p class="srv-muted mt-4">Tip: add the <b>Guard</b> companion for word and link filters, and set slow mode on busy channels.</p>

@@ -8,10 +8,10 @@ import live
 
 MSG_SELECT = """
     SELECT m.id, m.channel_id, m.body, m.created_at, m.sender_id,
-      COALESCE(sm.nickname, CASE WHEN u.is_bot THEN u.full_name ELSE u.username END) AS name,
+      COALESCE(sm.nickname, CASE WHEN u.is_bot = 1 THEN u.full_name ELSE u.username END) AS name,
       u.full_name, u.avatar, u.is_bot, u.username,
       m.attachment, m.attach_type, m.attach_name, m.edited, m.reply_to, m.pinned, m.embed,
-      COALESCE(rsm.nickname, CASE WHEN ru.is_bot THEN ru.full_name ELSE ru.username END) AS reply_name,
+      COALESCE(rsm.nickname, CASE WHEN ru.is_bot = 1 THEN ru.full_name ELSE ru.username END) AS reply_name,
       COALESCE(NULLIF(rm.body, ''), CASE rm.attach_type WHEN 'image' THEN '📷 Photo' WHEN 'video' THEN '🎥 Video' WHEN 'audio' THEN '🎵 Audio' ELSE '📎 File' END) AS reply_text,
       (SELECT r.color FROM member_roles mr JOIN server_roles r ON r.id = mr.role_id
        WHERE mr.server_id = :sid AND mr.user_id = m.sender_id
@@ -47,7 +47,7 @@ def serialize(db, rows):
         return rows
     marks = ",".join("?" * len(ids))
     reactions, votes = {}, {}
-    for r in db.execute(f"SELECT message_id, emoji, user_id FROM message_reactions WHERE message_id IN ({marks}) ORDER BY rowid", ids):
+    for r in db.execute(f"SELECT message_id, emoji, user_id FROM message_reactions WHERE message_id IN ({marks}) ORDER BY message_id, emoji, user_id", ids):
         reactions.setdefault(r["message_id"], {}).setdefault(r["emoji"], []).append(r["user_id"])
     for r in db.execute(f"SELECT message_id, user_id, choice FROM poll_votes WHERE message_id IN ({marks})", ids):
         votes.setdefault(r["message_id"], {})[r["user_id"]] = r["choice"]
@@ -156,7 +156,7 @@ def people_mentioned(db, server_id, body, can_ping_all):
             ids.add(row["id"])
         ids.update(r["user_id"] for r in db.execute(
             """SELECT mr.user_id FROM member_roles mr JOIN server_roles r ON r.id = mr.role_id
-               WHERE mr.server_id = ? AND r.name = ? COLLATE NOCASE""", (server_id, name)))
+               WHERE mr.server_id = ? AND LOWER(r.name) = LOWER(?)""", (server_id, name)))
     return ids
 
 

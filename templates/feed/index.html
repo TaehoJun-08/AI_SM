@@ -53,6 +53,7 @@
         <a class="lh-sm text-reset text-decoration-none" href="{{ url_for('profiles.public', username=p.username) }}">
           <b>{{ p.username }}</b><br><small class="muted">{{ p.full_name }}</small></a>
         <form method="POST" action="{{ url_for('dms.start', user_id=p.id) }}" class="ms-auto">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="link-btn">Message</button></form>
       </div>
     {% else %}

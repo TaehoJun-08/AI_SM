@@ -420,7 +420,8 @@ CREATE TABLE IF NOT EXISTS project_milestones (
     proof_image TEXT,
     proof_at    TEXT,
     released_at TEXT,
-    sent_back   TEXT
+    sent_back   TEXT,
+    due_at      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_milestones_project ON project_milestones (project_id);
@@ -509,6 +510,14 @@ CREATE TABLE IF NOT EXISTS email_codes (
     email      TEXT    NOT NULL,
     code_hash  TEXT    NOT NULL,
     tries      INTEGER NOT NULL DEFAULT 0,
+    sent_at    TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
+    expires_at TEXT    NOT NULL
+);
+
+-- The one reset link waiting to be used for an account (a password forgotten, not a college email).
+CREATE TABLE IF NOT EXISTS password_resets (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT    NOT NULL UNIQUE,
     sent_at    TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     expires_at TEXT    NOT NULL
 );

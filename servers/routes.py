@@ -270,7 +270,7 @@ def view(server_id, channel_id=None):
               WHERE mr.server_id = :sid AND mr.user_id = u.id
               ORDER BY r.position DESC, r.id LIMIT 1) AS top_role
            FROM server_members sm JOIN users u ON u.id = sm.user_id
-           WHERE sm.server_id = :sid ORDER BY u.username COLLATE NOCASE""", {"sid": server_id}).fetchall()
+           WHERE sm.server_id = :sid ORDER BY LOWER(u.username)""", {"sid": server_id}).fetchall()
     member_groups = {}
     for p in people:
         label = "Companions" if p["is_bot"] else ("Owner" if p["id"] == server["owner_id"] else (p["top_role"] or "Members"))
@@ -466,7 +466,7 @@ def settings(server_id):
         ctx["members"] = db.execute(
             """SELECT u.id, u.username, u.full_name, u.avatar, u.is_bot, sm.nickname, sm.timeout_until
                FROM server_members sm JOIN users u ON u.id = sm.user_id WHERE sm.server_id = ?
-               ORDER BY u.username COLLATE NOCASE""", (server_id,)).fetchall()
+               ORDER BY LOWER(u.username)""", (server_id,)).fetchall()
         member_roles = {}
         for row in db.execute("SELECT user_id, role_id FROM member_roles WHERE server_id = ?", (server_id,)):
             member_roles.setdefault(row["user_id"], set()).add(row["role_id"])

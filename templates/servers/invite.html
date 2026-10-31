@@ -29,6 +29,7 @@
         <a class="srv-btn d-inline-block text-decoration-none" href="{{ url_for('servers.view', server_id=server['id']) }}">Open server</a>
       {% else %}
         <form method="POST" action="{{ action }}" class="d-flex gap-2 justify-content-center">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="confirm" value="1">
           <a class="srv-btn ghost text-decoration-none" href="{{ url_for('servers.home') }}">Cancel</a>
           <button class="srv-btn">Yes, join</button>

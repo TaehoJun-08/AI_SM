@@ -11,6 +11,7 @@
         <h2>{{ person['username'] }}{% if person['verified_at'] %} <span class="verified lg" title="Verified college email: {{ person['college_email'].split('@')[1] }}">✓</span>{% endif %}</h2>
         {% if person['id'] != user['id'] %}
           <form method="POST" action="{{ url_for('dms.start', user_id=person['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-primary btn-sm">Message</button></form>
           {% if not person['accepts_offers'] %}<span class="offer-state">Offers paused</span>{% endif %}
         {% endif %}
