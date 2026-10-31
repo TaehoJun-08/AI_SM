@@ -1,263 +1,163 @@
 
 #Standard Libraries import
-import sqlite3
 import os
 import re
 
 #Third Party Library import
+from dotenv import load_dotenv
 from flask import g
+import psycopg2
+import psycopg2.extras
+import psycopg2.pool
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = os.path.join(BASE_DIR, "db")
-DB_PATH = os.path.join(DB_DIR, "aisponsor.db")
 SCHEMA_PATH = os.path.join(DB_DIR, "schema.sql")
+load_dotenv(os.path.join(BASE_DIR, ".env"))   # every entry point needs DATABASE_URL -- don't rely on each one loading it first
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres@127.0.0.1:5432/postgres")
+
+# A new TCP connection per request is expensive under real concurrency (Postgres forks a
+# backend process per connection) -- every per-request get_db() call borrows one of these
+# instead. Background work that can outlive a request (Nova's streaming replies, the
+# companion worker) still gets its own dedicated connection via open_connection().
+_pool = psycopg2.pool.ThreadedConnectionPool(2, 40, DATABASE_URL)
+
+# Tables whose primary key is a plain serial "id" column. Every call site that wants
+# cur.lastrowid (the sqlite3 idiom this codebase was written against) targets one of
+# these -- junction tables with composite keys never do, so we only add "RETURNING id"
+# here and never risk it on a table that has no such column.
+TABLES_WITH_ID = {
+    "users", "projects", "interests", "channels", "messages", "dm_threads", "dm_messages",
+    "comments", "servers", "server_roles", "server_categories", "server_channels",
+    "server_messages", "post_media", "audit_log", "bots", "reminders", "server_emojis",
+    "server_events", "project_updates", "project_milestones", "pending_posts", "deal_rounds",
+    "ai_messages", "ai_memory", "ai_actions", "project_endorsements",
+}
+
+_NAMED_PARAM = re.compile(r":(?!:)([a-z_][a-zA-Z0-9_]*)")
+_INSERT_TABLE = re.compile(r"(?i)^\s*INSERT\s+INTO\s+([a-zA-Z_]+)")
+
+
+def _translate(sql):
+    """This codebase is written in sqlite3's placeholder style (?  and :name).
+    psycopg2 only understands %s and %(name)s, so every query is rewritten once here
+    instead of touching the 500+ call sites that already use the sqlite style."""
+    sql = _NAMED_PARAM.sub(r"%(\1)s", sql)
+    return sql.replace("?", "%s")
+
+
+class Row(dict):
+    """Behaves like sqlite3.Row: supports row["col"] (used everywhere) and row[0]
+    (used by the many `.fetchone()[0]` call sites), and still satisfies the mapping
+    protocol so dict(row) and Jinja's `row.col` attribute fallback keep working."""
+
+    def __init__(self, data):
+        super().__init__(data)
+        self._order = list(data.keys())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return super().__getitem__(self._order[key])
+        return super().__getitem__(key)
+
+
+class Cursor:
+    def __init__(self, cur, lastrowid=None):
+        self._cur = cur
+        self.lastrowid = lastrowid
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        return Row(row) if row is not None else None
+
+    def fetchall(self):
+        return [Row(r) for r in self._cur.fetchall()]
+
+    def __iter__(self):
+        for r in self._cur:
+            yield Row(r)
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+
+class Connection:
+    def __init__(self, conn, pooled=False):
+        self._conn = conn
+        self._pooled = pooled
+
+    def execute(self, sql, params=()):
+        translated = _translate(sql)
+        match = _INSERT_TABLE.match(translated)
+        table = match.group(1) if match else None
+        wants_returning = table in TABLES_WITH_ID and "RETURNING" not in translated.upper()
+        if wants_returning:
+            translated = translated.rstrip().rstrip(";") + " RETURNING id"
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(translated, params)
+        lastrowid = None
+        if wants_returning:
+            row = cur.fetchone()
+            lastrowid = row["id"] if row else None
+        return Cursor(cur, lastrowid)
+
+    def executemany(self, sql, seq_of_params):
+        cur = self._conn.cursor()
+        cur.executemany(_translate(sql), list(seq_of_params))
+        return Cursor(cur)
+
+    def executescript(self, sql):
+        cur = self._conn.cursor()
+        cur.execute(sql)
+        self._conn.commit()
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        if self._pooled:
+            self._conn.rollback()      # never hand back a connection mid-transaction
+            _pool.putconn(self._conn)
+        else:
+            self._conn.close()
+
+
+def open_connection():
+    """A standalone connection, independent of any Flask request. Use this (not get_db)
+    for background work that outlives the request -- Nova's streaming replies, the
+    companion worker, and one-off scripts like seed_demo.py."""
+    return Connection(psycopg2.connect(DATABASE_URL))
+
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        # Under a sudden burst the pool can be briefly fully checked out; wait for one
+        # to free up instead of failing the request outright.
+        import time
+        for attempt in range(50):
+            try:
+                g.db = Connection(_pool.getconn(), pooled=True)
+                break
+            except psycopg2.pool.PoolError:
+                if attempt == 49:
+                    raise
+                time.sleep(0.1)
     return g.db
+
 
 def close_db(e=None):
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
-def add_usernames(conn):
-    """Older databases have no username column: add it and give everyone one."""
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
-    if not columns or "username" in columns:
-        return
-    conn.execute("ALTER TABLE users ADD COLUMN username TEXT")
-    taken = set()
-    for user_id, email in conn.execute("SELECT id, email FROM users ORDER BY id").fetchall():
-        name = re.sub(r"[^a-z0-9_.]", "", email.split("@")[0].lower())[:16]
-        if len(name) < 3 or name in taken:
-            name = f"{name}{user_id}"
-        if len(name) < 3:
-            name = f"user{user_id}"
-        taken.add(name)
-        conn.execute("UPDATE users SET username = ? WHERE id = ?", (name, user_id))
-        print(f"  {email} -> @{name}")
-
-
-def add_bio(conn):
-    """Older databases have no bio column: add it, empty for everyone."""
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
-    if columns and "bio" not in columns:
-        conn.execute("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''")
-
-
-def add_post_columns(conn):
-    """Older databases: posts get photo/video columns, sponsor offers get amount + message."""
-    def columns(table):
-        return [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
-    project_cols = columns("projects")
-    if project_cols and "media_path" not in project_cols:
-        conn.execute("ALTER TABLE projects ADD COLUMN media_path TEXT")
-        conn.execute("ALTER TABLE projects ADD COLUMN media_type TEXT")
-    interest_cols = columns("interests")
-    if interest_cols and "amount" not in interest_cols:
-        conn.execute("ALTER TABLE interests ADD COLUMN amount INTEGER")
-        conn.execute("ALTER TABLE interests ADD COLUMN message TEXT NOT NULL DEFAULT ''")
-
-
-def add_user_settings(conn):
-    """Older databases: profile photo + preference columns on users."""
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
-    if not columns:
-        return
-    wanted = {
-        "avatar": "TEXT",
-        "theme": "TEXT NOT NULL DEFAULT 'system'",
-        "accent": "TEXT NOT NULL DEFAULT 'aurora'",
-        "calm": "INTEGER NOT NULL DEFAULT 0",
-        "autoplay": "INTEGER NOT NULL DEFAULT 1",
-        "dm_policy": "TEXT NOT NULL DEFAULT 'everyone'",
-        "accepts_offers": "INTEGER NOT NULL DEFAULT 1",
-        "activity_seen": "TEXT",
-        "status": "TEXT NOT NULL DEFAULT 'online'",
-    }
-    for name, definition in wanted.items():
-        if name not in columns:
-            conn.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
-    interest_cols = [row[1] for row in conn.execute("PRAGMA table_info(interests)")]
-    if interest_cols and "responded_at" not in interest_cols:
-        conn.execute("ALTER TABLE interests ADD COLUMN responded_at TEXT")
-
-
-def start_notifications(conn):
-    """First run with notifications: everything that already exists counts as read."""
-    conn.execute("UPDATE users SET activity_seen = datetime('now','localtime') WHERE activity_seen IS NULL")
-    conn.execute("""INSERT OR IGNORE INTO dm_reads (thread_id, user_id, last_id)
-                    SELECT t.id, u.uid, COALESCE((SELECT MAX(id) FROM dm_messages WHERE thread_id = t.id), 0)
-                    FROM dm_threads t JOIN (SELECT user_a AS uid, id FROM dm_threads
-                                            UNION SELECT user_b, id FROM dm_threads) u ON u.id = t.id""")
-    conn.execute("""INSERT OR IGNORE INTO channel_reads (channel_id, user_id, last_id)
-                    SELECT c.id, sm.user_id, COALESCE((SELECT MAX(id) FROM server_messages WHERE channel_id = c.id), 0)
-                    FROM server_channels c JOIN server_members sm ON sm.server_id = c.server_id""")
-
-
-def move_post_media(conn):
-    """Posts used to hold one photo/video in projects.media_path: move it into post_media."""
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(projects)")]
-    if "media_path" not in columns:
-        return
-    conn.execute("""INSERT INTO post_media (post_id, path, type, position)
-                    SELECT id, media_path, media_type, 0 FROM projects
-                    WHERE media_path IS NOT NULL AND media_type IS NOT NULL""")
-    conn.execute("UPDATE projects SET media_path = NULL, media_type = NULL")
-
-
-def needs_withdrawn_status(conn):
-    """Old interests tables only allow pending/accepted/declined (a CHECK we can't alter)."""
-    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interests'").fetchone()
-    return row is not None and "withdrawn" not in row[0]
-
-
-def add_sponsorship_kinds(conn):
-    """Projects say which kinds of sponsorship they accept (money / goods / free sponsor), and an offer is a
-    bundle of those parts that both people can negotiate. Old rows become plain money projects and offers."""
-    wanted = {
-        "projects": [("accepts_money", "INTEGER NOT NULL DEFAULT 1"), ("accepts_goods", "INTEGER NOT NULL DEFAULT 0"),
-                     ("accepts_pilot", "INTEGER NOT NULL DEFAULT 0")],
-        "interests": [("goods", "TEXT NOT NULL DEFAULT ''"), ("pilot", "INTEGER NOT NULL DEFAULT 0"),
-                      ("turn", "TEXT NOT NULL DEFAULT 'creator'"), ("last_actor", "INTEGER")],
-    }
-    for table, columns in wanted.items():
-        have = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
-        for name, definition in columns:
-            if have and name not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
-
-
-def add_server_avatar(conn):
-    """Servers can have a photo (like a profile photo) instead of just an emoji icon + colour."""
-    have = [row[1] for row in conn.execute("PRAGMA table_info(servers)")]
-    if have and "avatar" not in have:
-        conn.execute("ALTER TABLE servers ADD COLUMN avatar TEXT")
-
-
-def add_ai_attachments(conn):
-    """Nova's messages can carry one upload (so far: an image Nova can actually see)."""
-    have = [row[1] for row in conn.execute("PRAGMA table_info(ai_messages)")]
-    if have and "attachment" not in have:
-        conn.execute("ALTER TABLE ai_messages ADD COLUMN attachment TEXT")
-        conn.execute("ALTER TABLE ai_messages ADD COLUMN attach_type TEXT")
-        conn.execute("ALTER TABLE ai_messages ADD COLUMN attach_name TEXT")
-
-
-def add_escrow_and_verification(conn):
-    """Milestones hold sponsors' money until proof is approved, and people can verify a college email.
-    Milestones an owner had already ticked "done" count as released."""
-    have = [row[1] for row in conn.execute("PRAGMA table_info(project_milestones)")]
-    if have and "released_at" not in have:
-        for name in ("proof", "proof_image", "proof_at", "released_at", "sent_back"):
-            conn.execute(f"ALTER TABLE project_milestones ADD COLUMN {name} TEXT")
-        conn.execute("UPDATE project_milestones SET released_at = datetime('now','localtime') WHERE done = 1")
-    have = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
-    if have and "verified_at" not in have:
-        conn.execute("ALTER TABLE users ADD COLUMN college_email TEXT")
-        conn.execute("ALTER TABLE users ADD COLUMN verified_at TEXT")
-
-
-def add_reply_edit(conn):
-    """Chat messages can be replies and can be edited: two new columns on both chat tables."""
-    for table in ("dm_messages", "server_messages"):
-        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
-        if cols and "reply_to" not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN reply_to INTEGER REFERENCES {table}(id) ON DELETE SET NULL")
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN edited INTEGER NOT NULL DEFAULT 0")
-
-
-def chat_needs_attachments(conn):
-    """Old chat tables have no attachment columns and force a non-empty body (a CHECK we can't alter)."""
-    cols = [row[1] for row in conn.execute("PRAGMA table_info(dm_messages)")]
-    return bool(cols) and "attachment" not in cols
-
-
-def add_server_features(conn):
-    """Round two of servers: new columns on old tables, and a rebuild of server_channels
-    (its kind CHECK can't be widened, and (server_id, name) can't stay unique because threads share names)."""
-    def cols(table):
-        return [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
-    adds = {"users": [("is_bot", "INTEGER NOT NULL DEFAULT 0")],
-            "servers": [("rules", "TEXT NOT NULL DEFAULT ''"), ("welcome", "TEXT NOT NULL DEFAULT ''"),
-                        ("base_perms", "INTEGER NOT NULL DEFAULT 15"), ("goal_title", "TEXT NOT NULL DEFAULT ''"),
-                        ("goal_amount", "INTEGER NOT NULL DEFAULT 0"),
-                        ("project_id", "INTEGER REFERENCES projects(id) ON DELETE SET NULL")],
-            "server_roles": [("perms", "INTEGER NOT NULL DEFAULT 0")],
-            "server_members": [("nickname", "TEXT"), ("timeout_until", "TEXT"),
-                               ("accepted_rules", "INTEGER NOT NULL DEFAULT 1")],
-            "server_messages": [("pinned", "INTEGER NOT NULL DEFAULT 0"), ("embed", "TEXT")]}
-    for table, new in adds.items():
-        have = cols(table)
-        for name, definition in new if have else []:
-            if name not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
-    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'server_channels'").fetchone()
-    if row and "forum" not in row[0]:
-        conn.execute("""CREATE TABLE server_channels_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
-            category_id INTEGER REFERENCES server_categories(id) ON DELETE SET NULL,
-            name TEXT NOT NULL,
-            kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text', 'announcement', 'voice', 'forum', 'thread')),
-            topic TEXT NOT NULL DEFAULT '',
-            is_private INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1)),
-            position INTEGER NOT NULL DEFAULT 0,
-            slowmode INTEGER NOT NULL DEFAULT 0,
-            read_only INTEGER NOT NULL DEFAULT 0,
-            parent_id INTEGER REFERENCES server_channels(id) ON DELETE CASCADE,
-            parent_message_id INTEGER,
-            created_by INTEGER)""")
-        conn.execute("""INSERT INTO server_channels_new (id, server_id, category_id, name, kind, topic, is_private, position)
-                        SELECT id, server_id, category_id, name, kind, topic, is_private, position FROM server_channels""")
-        conn.execute("DROP TABLE server_channels")
-        conn.execute("ALTER TABLE server_channels_new RENAME TO server_channels")
-
 
 def init_db():
-    os.makedirs(DB_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    add_usernames(conn)
-    add_bio(conn)
-    add_post_columns(conn)
-    add_user_settings(conn)
-    add_server_features(conn)
-    rebuild_chat = chat_needs_attachments(conn)
-    if rebuild_chat:
-        conn.execute("ALTER TABLE dm_messages RENAME TO dm_messages_old")
-        conn.execute("ALTER TABLE server_messages RENAME TO server_messages_old")
-    rebuild = needs_withdrawn_status(conn)
-    if rebuild:
-        conn.execute("ALTER TABLE interests RENAME TO interests_old")
-    first_notifications = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE name = 'dm_reads'").fetchone() is None
+    conn = open_connection()
     with open(SCHEMA_PATH, encoding="utf-8") as f:
         conn.executescript(f.read())
-    if first_notifications:
-        start_notifications(conn)
-    move_post_media(conn)
-    if rebuild_chat:
-        conn.execute("""INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
-                        SELECT id, thread_id, sender_id, body, created_at FROM dm_messages_old""")
-        conn.execute("""INSERT INTO server_messages (id, channel_id, sender_id, body, created_at)
-                        SELECT id, channel_id, sender_id, body, created_at FROM server_messages_old""")
-        conn.execute("DROP TABLE dm_messages_old")
-        conn.execute("DROP TABLE server_messages_old")
-        with open(SCHEMA_PATH, encoding="utf-8") as f:   # re-create the indexes that went with the old tables
-            conn.executescript(f.read())
-    if rebuild:
-        conn.execute("""INSERT INTO interests (id, sponsor_id, project_id, status, amount, message, created_at)
-                        SELECT id, sponsor_id, project_id, status, amount, message, created_at FROM interests_old""")
-        conn.execute("DROP TABLE interests_old")
-    add_reply_edit(conn)
-    add_sponsorship_kinds(conn)
-    add_server_avatar(conn)
-    add_ai_attachments(conn)
-    add_escrow_and_verification(conn)
-    conn.commit()
     conn.close()
-    print("Database ready at", DB_PATH)
+    print("Database ready (Postgres) at", DATABASE_URL)

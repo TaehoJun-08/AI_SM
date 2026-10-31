@@ -87,7 +87,7 @@ def submit_proof(milestone_id):
             image = path
     except ValueError as e:
         flash(str(e))
-    db.execute("""UPDATE project_milestones SET proof = ?, proof_image = ?, proof_at = datetime('now','localtime'),
+    db.execute("""UPDATE project_milestones SET proof = ?, proof_image = ?, proof_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'),
                   sent_back = NULL WHERE id = ?""", (proof, image, milestone_id))
     db.execute("DELETE FROM milestone_votes WHERE milestone_id = ?", (milestone_id,))     # a new proof is a new vote
     db.commit()
@@ -125,7 +125,7 @@ def vote(milestone_id):
         return projectlink.back_to_post(milestone["project_id"])
     db.execute("""INSERT INTO milestone_votes (milestone_id, sponsor_id, vote, note) VALUES (?, ?, ?, ?)
                   ON CONFLICT (milestone_id, sponsor_id) DO UPDATE SET vote = excluded.vote, note = excluded.note,
-                  created_at = datetime('now','localtime')""", (milestone_id, me, choice, note))
+                  created_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')""", (milestone_id, me, choice, note))
     db.commit()
     total = sum(money.values())
     votes = db.execute("SELECT sponsor_id, vote, note FROM milestone_votes WHERE milestone_id = ?", (milestone_id,)).fetchall()
@@ -144,7 +144,7 @@ def vote(milestone_id):
 
 
 def release(db, milestone, share):
-    db.execute("UPDATE project_milestones SET released_at = datetime('now','localtime') WHERE id = ?", (milestone["id"],))
+    db.execute("UPDATE project_milestones SET released_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?", (milestone["id"],))
     db.commit()
     live.notify([milestone["innovator_id"]], "activity", "💸 Money released",
                 f"Sponsors approved “{milestone['title']}”: ₹{share:,} is yours.", f"/p/{milestone['project_id']}")

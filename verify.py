@@ -66,7 +66,7 @@ def send_code():
         return back()
     db.execute("""INSERT INTO email_codes (user_id, email, code_hash, expires_at) VALUES (?, ?, ?, ?)
                   ON CONFLICT (user_id) DO UPDATE SET email = excluded.email, code_hash = excluded.code_hash, tries = 0,
-                  sent_at = datetime('now','localtime'), expires_at = excluded.expires_at""",
+                  sent_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'), expires_at = excluded.expires_at""",
                (me, email, generate_password_hash(code), expires))
     db.commit()
     flash(f"Code sent to {email}. 📬 Check your inbox (and spam).")
@@ -89,7 +89,7 @@ def check_code():
         db.commit()
         flash("That code isn't right. Check the email and try again.")
     else:
-        db.execute("UPDATE users SET college_email = ?, verified_at = datetime('now','localtime') WHERE id = ?",
+        db.execute("UPDATE users SET college_email = ?, verified_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?",
                    (pending["email"], me))
         db.execute("DELETE FROM email_codes WHERE user_id = ?", (me,))
         db.commit()
@@ -175,7 +175,7 @@ def confirm_endorsement(token):
     e = endorsement_for(token)
     db = get_db()
     if e["status"] == "pending":
-        db.execute("UPDATE project_endorsements SET status = 'endorsed', endorsed_at = datetime('now','localtime') WHERE id = ?",
+        db.execute("UPDATE project_endorsements SET status = 'endorsed', endorsed_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?",
                    (e["id"],))
         db.commit()
         owner = db.execute("SELECT innovator_id FROM projects WHERE id = ?", (e["project_id"],)).fetchone()["innovator_id"]

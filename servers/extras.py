@@ -63,7 +63,7 @@ def panel(server_id, kind):
                  (SELECT COUNT(*) FROM event_rsvps WHERE event_id = e.id) AS going,
                  (SELECT 1 FROM event_rsvps WHERE event_id = e.id AND user_id = ?) AS mine
                FROM server_events e LEFT JOIN users u ON u.id = e.creator_id
-               WHERE e.server_id = ? AND (e.notified = 0 OR e.starts_at >= datetime('now', 'localtime', '-1 day'))
+               WHERE e.server_id = ? AND (e.notified = 0 OR e.starts_at >= to_char(LOCALTIMESTAMP - INTERVAL '1 day', 'YYYY-MM-DD HH24:MI:SS'))
                ORDER BY e.starts_at""", (session["user_id"], server_id)).fetchall()
         ctx["channels"] = [c for c in db.execute(
             "SELECT id, name FROM server_channels WHERE server_id = ? AND kind IN ('text','announcement','voice') ORDER BY position",
@@ -206,7 +206,8 @@ def add_emoji(server_id):
         delete_media(path)
         flash("Emoji must be a picture under 512 KB.")
         return back(server_id, "emoji")
-    if db.execute("INSERT OR IGNORE INTO server_emojis (server_id, name, path) VALUES (?, ?, ?)", (server_id, name, path)).rowcount == 0:
+    if db.execute("""INSERT INTO server_emojis (server_id, name, path) VALUES (?, ?, ?)
+                     ON CONFLICT (server_id, name) DO NOTHING""", (server_id, name, path)).rowcount == 0:
         delete_media(path)
         flash(f":{name}: already exists.")
     else:

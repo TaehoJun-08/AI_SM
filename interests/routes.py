@@ -43,12 +43,12 @@ def offer(post_id):
     else:
         reopened = db.execute(
             """UPDATE interests SET status = 'pending', amount = ?, goods = ?, pilot = ?, message = ?, turn = 'creator',
-                      last_actor = ?, responded_at = datetime('now','localtime')
+                      last_actor = ?, responded_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
                WHERE sponsor_id = ? AND project_id = ? AND status = 'withdrawn'""",
             (terms["money"] or None, terms["goods"], terms["pilot"], message, me, me, post_id)).rowcount
         result = db.execute(
-            """INSERT OR IGNORE INTO interests (sponsor_id, project_id, amount, goods, pilot, message, last_actor)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO interests (sponsor_id, project_id, amount, goods, pilot, message, last_actor)
+               VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (sponsor_id, project_id) DO NOTHING""",
             (me, post_id, terms["money"] or None, terms["goods"], terms["pilot"], message, me))
         if result.rowcount or reopened:
             interest_id = db.execute("SELECT id FROM interests WHERE sponsor_id = ? AND project_id = ?", (me, post_id)).fetchone()["id"]
@@ -91,7 +91,7 @@ def edit(interest_id):
         flash("Nothing changed.")
         return go_back(url_for("feed.activity"))
     db.execute("UPDATE interests SET amount = ?, goods = ?, pilot = ?, message = ?, last_actor = ?, "
-               "responded_at = datetime('now','localtime') WHERE id = ?",
+               "responded_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?",
                (terms["money"] or None, terms["goods"], terms["pilot"], message, me, interest_id))
     deals.log_round(db, interest_id, me, "edit", terms, f"{deals.describe(before)} → {deals.describe(terms)}", message)
     chat = None

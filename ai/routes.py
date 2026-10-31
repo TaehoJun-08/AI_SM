@@ -2,13 +2,11 @@
 import json
 import mimetypes
 import os
-import sqlite3
 
 from flask import Blueprint, Response, abort, jsonify, render_template, request, session, stream_with_context
 
-import db as dbmod
 import live
-from db import get_db
+from db import get_db, open_connection
 from helpers import login_required
 from media import save_attachment
 from ai import gemini, memory
@@ -52,9 +50,7 @@ def _stream_response(me, history, user_text, image, start_meta=None):
     because this generator keeps running (and needs the database) after the view function has returned,
     which is exactly when Flask tears the request-scoped connection down."""
     def generate():
-        conn = sqlite3.connect(dbmod.DB_PATH)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
+        conn = open_connection()
         try:
             if start_meta:
                 yield json.dumps({"type": "start", **start_meta}) + "\n"
@@ -173,7 +169,8 @@ def _execute(db, me, kind, payload):
 def _send_dm(db, me, payload):
     to = payload["to"]
     a, b = min(me, to), max(me, to)
-    db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by) VALUES (?, ?, ?)", (a, b, me))
+    db.execute("""INSERT INTO dm_threads (user_a, user_b, requested_by) VALUES (?, ?, ?)
+                  ON CONFLICT (user_a, user_b) DO NOTHING""", (a, b, me))
     thread = db.execute("SELECT id, status, requested_by FROM dm_threads WHERE user_a = ? AND user_b = ?",
                         (a, b)).fetchone()
     if thread["status"] == "declined" and thread["requested_by"] != me:

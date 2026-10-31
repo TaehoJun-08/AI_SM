@@ -88,7 +88,8 @@ def commands():
     for c in items[:25]:
         name = str(c.get("name", "")).lower().strip().lstrip("/")[:20] if isinstance(c, dict) else ""
         if name and name.replace("_", "").replace("-", "").isalnum():
-            db.execute("INSERT OR REPLACE INTO bot_commands (bot_id, name, description) VALUES (?, ?, ?)",
+            db.execute("""INSERT INTO bot_commands (bot_id, name, description) VALUES (?, ?, ?)
+                          ON CONFLICT (bot_id, name) DO UPDATE SET description = excluded.description""",
                        (bot["id"], name, str(c.get("description", ""))[:100]))
             saved += 1
     db.commit()

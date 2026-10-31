@@ -136,7 +136,8 @@ def sync_sponsors(db, server_id):
     for r in db.execute("""SELECT i.sponsor_id FROM interests i JOIN server_members m
                            ON m.user_id = i.sponsor_id AND m.server_id = ?
                            WHERE i.project_id = ? AND i.status = 'accepted'""", (server_id, server["project_id"])):
-        db.execute("INSERT OR IGNORE INTO member_roles (server_id, user_id, role_id) VALUES (?, ?, ?)",
+        db.execute("""INSERT INTO member_roles (server_id, user_id, role_id) VALUES (?, ?, ?)
+                      ON CONFLICT (user_id, role_id) DO NOTHING""",
                    (server_id, r["sponsor_id"], role["id"]))
     db.commit()
 
@@ -176,8 +177,10 @@ def create_project_server(db, project, name=None):
         if role:
             db.execute("INSERT INTO channel_roles (channel_id, role_id) VALUES (?, ?)", (cid, roles[role]))
         if name == "sponsors":
-            db.execute("INSERT OR IGNORE INTO channel_roles (channel_id, role_id) VALUES (?, ?)", (cid, roles["Team"]))
-    db.execute("INSERT OR IGNORE INTO member_roles (server_id, user_id, role_id) VALUES (?, ?, ?)", (sid, owner, roles["Team"]))
+            db.execute("""INSERT INTO channel_roles (channel_id, role_id) VALUES (?, ?)
+                          ON CONFLICT (channel_id, role_id) DO NOTHING""", (cid, roles["Team"]))
+    db.execute("""INSERT INTO member_roles (server_id, user_id, role_id) VALUES (?, ?, ?)
+                  ON CONFLICT (user_id, role_id) DO NOTHING""", (sid, owner, roles["Team"]))
     ann = db.execute("SELECT id FROM server_channels WHERE server_id = ? AND name = 'announcements'", (sid,)).fetchone()["id"]
     db.commit()
     scout, _ = companions.install(db, sid, "scout", owner)
@@ -238,7 +241,8 @@ MAX_MILESTONES = 6
 
 
 def follow(db, project_id, user_id):
-    db.execute("INSERT OR IGNORE INTO project_follows (project_id, user_id) VALUES (?, ?)", (project_id, user_id))
+    db.execute("""INSERT INTO project_follows (project_id, user_id) VALUES (?, ?)
+                  ON CONFLICT (project_id, user_id) DO NOTHING""", (project_id, user_id))
     db.commit()
 
 

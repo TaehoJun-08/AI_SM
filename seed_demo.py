@@ -6,7 +6,6 @@ Safe to run again: it does nothing if the demo data is already there.
 All demo accounts use the password below.
 """
 import os
-import sqlite3
 
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.security import generate_password_hash
@@ -67,8 +66,7 @@ def make_image(name, c1, c2, label, size=900):
 
 def main():
     dbmod.init_db()
-    conn = sqlite3.connect(dbmod.DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn = dbmod.open_connection()
     if conn.execute("SELECT 1 FROM users WHERE username = 'maya_k'").fetchone():
         print("Demo data is already there. Nothing to do.")
         return

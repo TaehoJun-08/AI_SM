@@ -368,7 +368,8 @@ def join_server(server_id, invite=None):
         flash("You are banned from that server.")
         return redirect(url_for("servers.home"))
     server = db.execute("SELECT * FROM servers WHERE id = ?", (server_id,)).fetchone()
-    joined = db.execute("INSERT OR IGNORE INTO server_members (server_id, user_id, accepted_rules) VALUES (?, ?, ?)",
+    joined = db.execute("""INSERT INTO server_members (server_id, user_id, accepted_rules) VALUES (?, ?, ?)
+                           ON CONFLICT (server_id, user_id) DO NOTHING""",
                         (server_id, me, 0 if server["rules"].strip() else 1)).rowcount
     if joined and invite:
         db.execute("UPDATE server_invites SET uses = uses + 1 WHERE code = ?", (invite["code"],))
@@ -582,8 +583,8 @@ def add_role(server_id):
                          (server_id,)).fetchone()[0]
         position = top + 1 if m["is_manager"] else max(1, min(top + 1, m["top"] - 1))
         result = db.execute(
-            """INSERT OR IGNORE INTO server_roles (server_id, name, color, is_admin, perms, position)
-               VALUES (?, ?, ?, ?, ?, ?)""", (server_id, *fields, position))
+            """INSERT INTO server_roles (server_id, name, color, is_admin, perms, position)
+               VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (server_id, name) DO NOTHING""", (server_id, *fields, position))
         audit(server_id, "role.create", fields[0])
         db.commit()
         flash(f"Role {fields[0]} created." if result.rowcount else "A role with that name exists.")

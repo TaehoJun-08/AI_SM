@@ -54,7 +54,9 @@ def ban(server_id, user_id):
         db = get_db()
         reason = request.form.get("reason", "").strip()[:200]
         db.execute("DELETE FROM server_members WHERE server_id = ? AND user_id = ?", (server_id, user_id))
-        db.execute("INSERT OR REPLACE INTO server_bans (server_id, user_id, reason, banned_by) VALUES (?, ?, ?, ?)",
+        db.execute("""INSERT INTO server_bans (server_id, user_id, reason, banned_by) VALUES (?, ?, ?, ?)
+                      ON CONFLICT (server_id, user_id) DO UPDATE SET
+                      reason = excluded.reason, banned_by = excluded.banned_by, created_at = excluded.created_at""",
                    (server_id, user_id, reason, session["user_id"]))
         audit(server_id, "member.ban", f"{live.username(db, user_id)} {reason}".strip())
         db.commit()

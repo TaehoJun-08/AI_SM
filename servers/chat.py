@@ -189,7 +189,8 @@ def on_vote(data):
     if current and current["choice"] == choice:
         db.execute("DELETE FROM poll_votes WHERE message_id = ? AND user_id = ?", (row["id"], user_id))
     else:
-        db.execute("INSERT OR REPLACE INTO poll_votes (message_id, user_id, choice) VALUES (?, ?, ?)", (row["id"], user_id, choice))
+        db.execute("""INSERT INTO poll_votes (message_id, user_id, choice) VALUES (?, ?, ?)
+                      ON CONFLICT (message_id, user_id) DO UPDATE SET choice = excluded.choice""", (row["id"], user_id, choice))
     db.commit()
     message = one(db, row["id"], channel["server_id"])
     emit("votes", {"id": row["id"], "votes": message["votes"]}, to=f"srv-{channel['id']}")

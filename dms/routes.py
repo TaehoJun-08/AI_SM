@@ -116,7 +116,8 @@ def start(user_id):
     if not existing and target["dm_policy"] == "none":
         flash(f"@{target['username']} isn't accepting new messages right now.")
         return redirect(request.referrer or url_for("dms.inbox"))
-    db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by) VALUES (?, ?, ?)",
+    db.execute("""INSERT INTO dm_threads (user_a, user_b, requested_by) VALUES (?, ?, ?)
+                  ON CONFLICT (user_a, user_b) DO NOTHING""",
                (a, b, me))
     db.execute("""UPDATE dm_threads SET status = 'pending', requested_by = ?
                   WHERE user_a = ? AND user_b = ? AND status = 'declined'

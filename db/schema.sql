@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            SERIAL PRIMARY KEY,
     full_name     TEXT    NOT NULL,
     username      TEXT    NOT NULL,
     email         TEXT    NOT NULL UNIQUE,
@@ -16,13 +16,15 @@ CREATE TABLE IF NOT EXISTS users (
     activity_seen TEXT,
     status        TEXT    NOT NULL DEFAULT 'online',
     is_bot        INTEGER NOT NULL DEFAULT 0,
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    college_email TEXT,
+    verified_at   TEXT,
+    created_at    TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
 CREATE TABLE IF NOT EXISTS projects (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    id             SERIAL PRIMARY KEY,
     innovator_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title          TEXT    NOT NULL,
     summary        TEXT    NOT NULL,
@@ -33,8 +35,13 @@ CREATE TABLE IF NOT EXISTS projects (
     funding_needed INTEGER NOT NULL CHECK (funding_needed > 0),
     media_path     TEXT,
     media_type     TEXT    CHECK (media_type IN ('image', 'video')),
-    created_at     TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    accepts_money  INTEGER NOT NULL DEFAULT 1,
+    accepts_goods  INTEGER NOT NULL DEFAULT 0,
+    accepts_pilot  INTEGER NOT NULL DEFAULT 0,
+    created_at     TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_projects_innovator ON projects (innovator_id);
 
 CREATE TABLE IF NOT EXISTS sponsor_profiles (
     user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -42,7 +49,7 @@ CREATE TABLE IF NOT EXISTS sponsor_profiles (
     bio          TEXT    NOT NULL,
     budget_min   INTEGER NOT NULL CHECK (budget_min > 0),
     budget_max   INTEGER NOT NULL,
-    updated_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at   TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     CHECK (budget_max >= budget_min)
 );
 
@@ -53,22 +60,28 @@ CREATE TABLE IF NOT EXISTS sponsor_domains (
 );
 
 CREATE TABLE IF NOT EXISTS interests (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     sponsor_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     status      TEXT    NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending', 'accepted', 'declined', 'withdrawn')),
     amount      INTEGER,
+    goods       TEXT    NOT NULL DEFAULT '',
+    pilot       INTEGER NOT NULL DEFAULT 0,
+    turn        TEXT    NOT NULL DEFAULT 'creator',
+    last_actor  INTEGER,
     message     TEXT    NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     responded_at TEXT,
     UNIQUE (sponsor_id, project_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_interests_project ON interests (project_id);
+
 CREATE TABLE IF NOT EXISTS project_members (
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    joined_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    joined_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     PRIMARY KEY (project_id, user_id)
 );
 
@@ -78,38 +91,38 @@ CREATE TABLE IF NOT EXISTS project_invites (
 );
 
 CREATE TABLE IF NOT EXISTS channels (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name       TEXT    NOT NULL,
     team_only  INTEGER NOT NULL DEFAULT 0 CHECK (team_only IN (0, 1)),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     UNIQUE (project_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 2000),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages (channel_id, id);
 
 CREATE TABLE IF NOT EXISTS dm_threads (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id           SERIAL PRIMARY KEY,
     user_a       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     user_b       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     requested_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status       TEXT    NOT NULL DEFAULT 'pending'
                  CHECK (status IN ('pending', 'accepted', 'declined')),
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at   TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     CHECK (user_a < user_b),
     UNIQUE (user_a, user_b)
 );
 
 CREATE TABLE IF NOT EXISTS dm_messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     thread_id  INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
     sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL DEFAULT '' CHECK (length(body) <= 2000),
@@ -118,7 +131,7 @@ CREATE TABLE IF NOT EXISTS dm_messages (
     attach_name TEXT,
     reply_to INTEGER REFERENCES dm_messages(id) ON DELETE SET NULL,
     edited INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     CHECK (length(body) > 0 OR attachment IS NOT NULL)
 );
 
@@ -127,16 +140,16 @@ CREATE INDEX IF NOT EXISTS idx_dm_messages_thread ON dm_messages (thread_id, id)
 CREATE TABLE IF NOT EXISTS likes (
     post_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     PRIMARY KEY (post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS comments (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     post_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 500),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, id);
@@ -144,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, id);
 -- ---------- Servers (Discord-style) ----------
 
 CREATE TABLE IF NOT EXISTS servers (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 40),
     icon        TEXT    NOT NULL DEFAULT '',
@@ -159,13 +172,13 @@ CREATE TABLE IF NOT EXISTS servers (
     goal_title  TEXT    NOT NULL DEFAULT '',
     goal_amount INTEGER NOT NULL DEFAULT 0,
     project_id  INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_servers_project ON servers (project_id) WHERE project_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS server_roles (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        SERIAL PRIMARY KEY,
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     name      TEXT    NOT NULL,
     color     TEXT    NOT NULL DEFAULT '#99aab5',
@@ -178,7 +191,7 @@ CREATE TABLE IF NOT EXISTS server_roles (
 CREATE TABLE IF NOT EXISTS server_members (
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    joined_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    joined_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     nickname  TEXT,
     timeout_until TEXT,
     accepted_rules INTEGER NOT NULL DEFAULT 1,
@@ -194,14 +207,14 @@ CREATE TABLE IF NOT EXISTS member_roles (
 );
 
 CREATE TABLE IF NOT EXISTS server_categories (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        SERIAL PRIMARY KEY,
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     name      TEXT    NOT NULL,
     position  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS server_channels (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     category_id INTEGER REFERENCES server_categories(id) ON DELETE SET NULL,
     name        TEXT    NOT NULL,
@@ -223,7 +236,7 @@ CREATE TABLE IF NOT EXISTS channel_roles (
 );
 
 CREATE TABLE IF NOT EXISTS server_messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
     sender_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL DEFAULT '' CHECK (length(body) <= 2000),
@@ -234,14 +247,14 @@ CREATE TABLE IF NOT EXISTS server_messages (
     edited INTEGER NOT NULL DEFAULT 0,
     pinned INTEGER NOT NULL DEFAULT 0,
     embed TEXT,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     CHECK (length(body) > 0 OR attachment IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages (channel_id, id);
 
 CREATE TABLE IF NOT EXISTS post_media (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    id       SERIAL PRIMARY KEY,
     post_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     path     TEXT    NOT NULL,
     type     TEXT    NOT NULL CHECK (type IN ('image', 'video')),
@@ -280,17 +293,17 @@ CREATE TABLE IF NOT EXISTS server_bans (
     user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reason    TEXT    NOT NULL DEFAULT '',
     banned_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TEXT   NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at TEXT   NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     PRIMARY KEY (server_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        SERIAL PRIMARY KEY,
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     actor_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     action    TEXT    NOT NULL,
     detail    TEXT    NOT NULL DEFAULT '',
-    created_at TEXT   NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT   NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_audit_server ON audit_log (server_id, id);
 
@@ -311,7 +324,7 @@ CREATE TABLE IF NOT EXISTS poll_votes (
 -- A companion is a bot. Built-in ones have a kind like 'dice'; your own have kind 'custom'
 -- (talk to us over the API) or 'webhook' (post into one channel with a secret URL).
 CREATE TABLE IF NOT EXISTS bots (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     user_id     INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     kind        TEXT    NOT NULL,
@@ -321,7 +334,7 @@ CREATE TABLE IF NOT EXISTS bots (
     channel_id  INTEGER REFERENCES server_channels(id) ON DELETE CASCADE,
     config      TEXT    NOT NULL DEFAULT '{}',
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_bots_server ON bots (server_id);
 
@@ -341,7 +354,7 @@ CREATE TABLE IF NOT EXISTS member_xp (
 );
 
 CREATE TABLE IF NOT EXISTS reminders (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        SERIAL PRIMARY KEY,
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
     user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -356,11 +369,11 @@ CREATE TABLE IF NOT EXISTS server_invites (
     max_uses   INTEGER NOT NULL DEFAULT 0,
     uses       INTEGER NOT NULL DEFAULT 0,
     expires_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE TABLE IF NOT EXISTS server_emojis (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        SERIAL PRIMARY KEY,
     server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     name      TEXT    NOT NULL,
     path      TEXT    NOT NULL,
@@ -368,7 +381,7 @@ CREATE TABLE IF NOT EXISTS server_emojis (
 );
 
 CREATE TABLE IF NOT EXISTS server_events (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     server_id   INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
     creator_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     title       TEXT    NOT NULL,
@@ -387,23 +400,30 @@ CREATE TABLE IF NOT EXISTS event_rsvps (
 -- ---------- Project servers: updates, milestones, followers ----------
 
 CREATE TABLE IF NOT EXISTS project_updates (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     author_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL CHECK (length(body) BETWEEN 1 AND 500),
     image      TEXT,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_project_updates ON project_updates (project_id, id);
 
 CREATE TABLE IF NOT EXISTS project_milestones (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     title      TEXT    NOT NULL,
     amount     INTEGER NOT NULL CHECK (amount > 0),
     done       INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
-    announced  INTEGER NOT NULL DEFAULT 0 CHECK (announced IN (0, 1))
+    announced  INTEGER NOT NULL DEFAULT 0 CHECK (announced IN (0, 1)),
+    proof       TEXT,
+    proof_image TEXT,
+    proof_at    TEXT,
+    released_at TEXT,
+    sent_back   TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_milestones_project ON project_milestones (project_id);
 
 CREATE TABLE IF NOT EXISTS project_follows (
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -414,17 +434,17 @@ CREATE TABLE IF NOT EXISTS project_follows (
 -- Messages for a project's server that could not be delivered yet (no server, or Sponsor Scout has no channel).
 -- They are sent in order the moment the server and its Scout are ready.
 CREATE TABLE IF NOT EXISTS pending_posts (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     body       TEXT    NOT NULL DEFAULT '',
     embed      TEXT,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_pending_posts ON pending_posts (project_id, id);
 
 -- Every step of a sponsorship deal: the offer, each counter, the final agreement. Terms are a snapshot.
 CREATE TABLE IF NOT EXISTS deal_rounds (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          SERIAL PRIMARY KEY,
     interest_id INTEGER NOT NULL REFERENCES interests(id) ON DELETE CASCADE,
     actor_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kind        TEXT    NOT NULL,
@@ -433,38 +453,41 @@ CREATE TABLE IF NOT EXISTS deal_rounds (
     pilot       INTEGER NOT NULL DEFAULT 0,
     summary     TEXT    NOT NULL DEFAULT '',
     note        TEXT    NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_deal_rounds ON deal_rounds (interest_id, id);
 
 -- ---------- Nova: the platform's AI assistant ----------
 
 CREATE TABLE IF NOT EXISTS ai_messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role       TEXT    NOT NULL CHECK (role IN ('user', 'model')),
     body       TEXT    NOT NULL,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    attachment TEXT,
+    attach_type TEXT,
+    attach_name TEXT,
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_messages ON ai_messages (user_id, id);
 
 -- Durable facts Nova has learned about one person, carried into every future conversation.
 CREATE TABLE IF NOT EXISTS ai_memory (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     fact       TEXT    NOT NULL,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_memory ON ai_memory (user_id, id);
 
 -- Anything Nova wants to do on a person's behalf (send a DM, post an update) waits here for one click.
 CREATE TABLE IF NOT EXISTS ai_actions (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         SERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kind       TEXT    NOT NULL CHECK (kind IN ('send_dm', 'post_update')),
     payload    TEXT    NOT NULL,
     status     TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_actions ON ai_actions (user_id, id);
 
@@ -476,7 +499,7 @@ CREATE TABLE IF NOT EXISTS milestone_votes (
     sponsor_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     vote         TEXT    NOT NULL CHECK (vote IN ('approve', 'reject')),
     note         TEXT    NOT NULL DEFAULT '',
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at   TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     PRIMARY KEY (milestone_id, sponsor_id)
 );
 
@@ -486,19 +509,19 @@ CREATE TABLE IF NOT EXISTS email_codes (
     email      TEXT    NOT NULL,
     code_hash  TEXT    NOT NULL,
     tries      INTEGER NOT NULL DEFAULT 0,
-    sent_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    sent_at    TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     expires_at TEXT    NOT NULL
 );
 
 -- A faculty mentor vouches for a project by clicking a link sent to their college email.
 CREATE TABLE IF NOT EXISTS project_endorsements (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id           SERIAL PRIMARY KEY,
     project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     mentor_name  TEXT    NOT NULL,
     mentor_email TEXT    NOT NULL,
     token_hash   TEXT    NOT NULL UNIQUE,
     status       TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'endorsed')),
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at   TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')),
     endorsed_at  TEXT,
     UNIQUE (project_id, mentor_email)
 );

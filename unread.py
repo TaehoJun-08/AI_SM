@@ -26,15 +26,16 @@ def mark_channel(channel_id, me):
 def mark_server_read_from_now(server_id, me):
     """Someone who just joined shouldn't see the whole history as unread."""
     db = get_db()
-    db.execute("""INSERT OR IGNORE INTO channel_reads (channel_id, user_id, last_id)
+    db.execute("""INSERT INTO channel_reads (channel_id, user_id, last_id)
                   SELECT c.id, ?, COALESCE((SELECT MAX(id) FROM server_messages WHERE channel_id = c.id), 0)
-                  FROM server_channels c WHERE c.server_id = ?""", (me, server_id))
+                  FROM server_channels c WHERE c.server_id = ?
+                  ON CONFLICT (channel_id, user_id) DO NOTHING""", (me, server_id))
     db.commit()
 
 
 def mark_activity(me):
     db = get_db()
-    db.execute("UPDATE users SET activity_seen = datetime('now','localtime') WHERE id = ?", (me,))
+    db.execute("UPDATE users SET activity_seen = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?", (me,))
     db.commit()
 
 

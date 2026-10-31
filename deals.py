@@ -147,7 +147,7 @@ def respond(db, offer, actor, decisions, note=""):
 
     if not any(kept.values()):                       # nothing left: the deal is over
         status = "declined" if role == "creator" else "withdrawn"
-        db.execute("""UPDATE interests SET status = ?, last_actor = ?, responded_at = datetime('now','localtime')
+        db.execute("""UPDATE interests SET status = ?, last_actor = ?, responded_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
                       WHERE id = ?""", (status, actor, offer["id"]))
         log_round(db, offer["id"], actor, "decline", current, text, note)
         db.commit()
@@ -158,7 +158,7 @@ def respond(db, offer, actor, decisions, note=""):
 
     if countered:                                    # hand the turn to the other person
         db.execute("""UPDATE interests SET amount = ?, goods = ?, pilot = ?, turn = ?, last_actor = ?,
-                      responded_at = datetime('now','localtime') WHERE id = ?""",
+                      responded_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?""",
                    (kept["money"] or None, kept["goods"], kept["pilot"], other, actor, offer["id"]))
         log_round(db, offer["id"], actor, "counter", kept, text, note)
         db.commit()
@@ -168,7 +168,7 @@ def respond(db, offer, actor, decisions, note=""):
         return True, "Counter-offer sent. Now it's their turn. ↔", None
 
     db.execute("""UPDATE interests SET status = 'accepted', amount = ?, goods = ?, pilot = ?, last_actor = ?,
-                  responded_at = datetime('now','localtime') WHERE id = ?""",
+                  responded_at = to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') WHERE id = ?""",
                (kept["money"] or None, kept["goods"], kept["pilot"], actor, offer["id"]))
     log_round(db, offer["id"], actor, "accept", kept, text, note)
     db.commit()
@@ -180,7 +180,8 @@ def _connect(db, offer, actor, other_id, terms, note=""):
     """The deal is agreed: open a chat, say so in it, tell the other person and let the project server cheer."""
     sponsor, creator = offer["sponsor_id"], offer["innovator_id"]
     a, b = min(sponsor, creator), max(sponsor, creator)
-    db.execute("INSERT OR IGNORE INTO dm_threads (user_a, user_b, requested_by, status) VALUES (?, ?, ?, 'accepted')",
+    db.execute("""INSERT INTO dm_threads (user_a, user_b, requested_by, status) VALUES (?, ?, ?, 'accepted')
+                  ON CONFLICT (user_a, user_b) DO NOTHING""",
                (a, b, sponsor))
     db.execute("UPDATE dm_threads SET status = 'accepted' WHERE user_a = ? AND user_b = ?", (a, b))
     thread = db.execute("SELECT id FROM dm_threads WHERE user_a = ? AND user_b = ?", (a, b)).fetchone()["id"]
