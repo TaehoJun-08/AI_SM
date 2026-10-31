@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}AI sponsor match · {{ title }}{% endblock %}
+{% block content %}
+<div class="match-page">
+  <header class="match-head">
+    <span class="match-avatar">✨</span>
+    <div class="lh-sm">
+      <strong>AI sponsor match</strong><br>
+      <small class="muted">for "{{ title }}"</small>
+    </div>
+  </header>
+
+  <div class="match-body" id="match-body" data-pid="{{ pid }}">
+    <div class="empty-state" id="match-start">
+      <div class="empty-ring">✨</div>
+      <h5 class="mb-1">Let's find your sponsors</h5>
+      <p class="muted mb-3">Answer three quick questions, then we'll match you with the<br>best-fit sponsors and draft outreach emails you can send.</p>
+      <button type="button" class="btn btn-primary rounded-pill px-4" id="match-start-btn">Start</button>
+    </div>
+
+    <div class="match-qs" id="match-qs" hidden></div>
+    <div class="match-results" id="match-results"></div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/sponsormatch.js') }}"></script>
+{% endblock %}

@@ -1278,3 +1278,22 @@ a.p-item:hover { border-color: var(--a1); }
 .nova-editor { width: 100%; margin-top: 6px; }
 .nova-editor textarea { width: 100%; min-height: 60px; resize: vertical; }
 .nova-editor-buttons { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
+
+/* ---------- AI sponsor match ---------- */
+.match-page { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
+.match-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.match-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 1.1rem; background: var(--grad); flex-shrink: 0; }
+.match-body { background: var(--card); border: 1px solid var(--line); border-radius: 1.5rem;
+  box-shadow: var(--shadow); backdrop-filter: blur(16px); padding: 28px 24px; }
+.match-qs { display: flex; flex-direction: column; gap: 14px; }
+.match-field label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+.match-input { width: 100%; background: var(--input); border: 1px solid var(--line); border-radius: .8rem;
+  padding: 9px 12px; color: var(--text); }
+.match-results { display: flex; flex-direction: column; gap: 16px; }
+.match-card { padding: 16px 18px; border-radius: 1rem; background: var(--raised); border: 1px solid var(--line); }
+.match-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.match-card-head h6 { margin: 0; margin-right: auto; }
+.match-email { background: var(--hover); border-radius: .9rem; padding: 10px 14px; }
+.match-email-subject { font-weight: 600; margin-bottom: 6px; }
+.match-email-body { white-space: pre-wrap; font-family: inherit; margin: 0; color: var(--text-2); }
