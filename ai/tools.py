@@ -43,7 +43,8 @@ def get_deal_room(ctx, interest_id=None):
     if offer is None or deals.role_of(offer, ctx["user_id"]) is None:
         return {"error": "That deal room isn't visible to you."}
     info = deals.room_context(db, offer, ctx["user_id"])
-    return {"project": info["offer"]["title"], "your_role": info["role"], "your_turn": info["your_turn"],
+    return {"project": info["offer"]["title"], "domain": info["offer"]["domain"], "stage": info["offer"]["stage"],
+            "your_role": info["role"], "your_turn": info["your_turn"],
             "status": info["offer"]["status"], "current_terms": deals.describe(info["offer"]),
             "history": [{"by": r["username"], "kind": r["kind"], "note": r["summary"] or r["note"]}
                         for r in info["rounds"][-10:]]}
@@ -51,6 +52,10 @@ def get_deal_room(ctx, interest_id=None):
 
 def get_platform_trends(ctx, domain=None):
     return memory.trends(ctx["db"], domain or None)
+
+
+def get_counter_benchmarks(ctx, domain=None, stage=None):
+    return memory.counter_benchmarks(ctx["db"], domain or None, stage or None)
 
 
 def remember(ctx, fact=None):
@@ -92,7 +97,8 @@ def draft_project_update(ctx, project_id=None, body=None):
 
 DISPATCH = {
     "get_my_projects": get_my_projects, "get_project": get_project, "get_deal_room": get_deal_room,
-    "get_platform_trends": get_platform_trends, "remember": remember, "run_python": run_python,
+    "get_platform_trends": get_platform_trends, "get_counter_benchmarks": get_counter_benchmarks,
+    "remember": remember, "run_python": run_python,
     "draft_dm": draft_dm, "draft_project_update": draft_project_update,
 }
 
@@ -110,6 +116,13 @@ DECLARATIONS = [
      "description": "Anonymised platform-wide patterns, grouped across many projects -- never one specific "
                      "person's data: typical funding ask by domain/stage, and the overall offer-acceptance rate.",
      "parameters": {"type": "object", "properties": {"domain": {"type": "string"}}}},
+    {"name": "get_counter_benchmarks",
+     "description": "How ACCEPTED deals' final terms landed compared to their opening offer, grouped by "
+                     "domain/stage: the average fraction of the opening money ask that accepted deals settled "
+                     "at, how many rounds deals like this usually take, and how often they took a counter at "
+                     "all. Each group reports its own sample size -- treat groups with few deals as weak signal. "
+                     "Use this (not get_platform_trends) when judging whether a specific counter-offer is fair.",
+     "parameters": {"type": "object", "properties": {"domain": {"type": "string"}, "stage": {"type": "string"}}}},
     {"name": "remember",
      "description": "Save one short, durable fact about the current user for future conversations "
                      "(a goal, a preference, something recurring). Use sparingly, only for things worth keeping.",

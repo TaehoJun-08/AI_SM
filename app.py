@@ -92,4 +92,8 @@ def too_large(error):
 
 if __name__ == "__main__":
     init_db()  # creates the database on a fresh clone (safe to run every time)
-    socketio.run(app, host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=True)
+    # use_reloader=False: on Windows, eventlet's socket doesn't release fast enough between an old and
+    # new bind when the reloader restarts on a file change, which crashes with WinError 10048. The
+    # debugger (PIN, tracebacks) stays on either way -- this only turns off auto-restart-on-save.
+    socketio.run(app, host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=True,
+                 use_reloader=False)

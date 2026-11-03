@@ -1,15 +1,7 @@
 {% extends "base.html" %}
 {% from "_avatar.html" import avatar %}
+{% from "deals/_macros.html" import chips, round_item %}
 {% block title %}Deal · {{ offer['title'] }}{% endblock %}
-{% set KIND = {'offer': ('📨', 'sent an offer'), 'counter': ('↔', 'sent a counter-offer'), 'accept': ('🤝', 'agreed to the deal'),
-               'decline': ('✖', 'ended the deal'), 'withdraw': ('↩️', 'withdrew'), 'edit': ('✏️', 'changed the offer')} %}
-{% macro chips(amount, goods, pilot) -%}
-  <div class="deal-chips">
-    {% if amount %}<span class="dchip money">💰 ₹{{ '{:,}'.format(amount) }}</span>{% endif %}
-    {% if goods %}<span class="dchip goods">🎁 {{ goods }}</span>{% endif %}
-    {% if pilot %}<span class="dchip pilot">🌱 Free sponsor</span>{% endif %}
-  </div>
-{%- endmacro %}
 {% block content %}
 <div class="narrow deal-room">
   <a class="muted text-decoration-none" href="{{ url_for('feed.activity') }}">← Activity</a>
@@ -35,19 +27,7 @@
 
     <h6 class="section-title">How the deal went</h6>
     <div class="deal-timeline">
-      {% for r in rounds|reverse %}
-        {% set icon_, verb = KIND[r['kind']] %}
-        <div class="round round-{{ r['kind'] }}">
-          <span class="round-dot">{{ icon_ }}</span>
-          <div class="round-body">
-            <div><b>{{ 'You' if r['actor_id'] == user['id'] else '@' ~ r['username'] }}</b> {{ verb }}
-              <small class="muted ms-1">{{ r['created_at'][:16] }}</small></div>
-            {% if r['kind'] in ['offer', 'counter', 'accept', 'edit'] %}{{ chips(r['amount'], r['goods'], r['pilot']) }}{% endif %}
-            {% if r['summary'] and r['kind'] in ['counter', 'accept', 'decline', 'edit'] %}<div class="round-sum">{{ r['summary'] }}</div>{% endif %}
-            {% if r['note'] %}<div class="round-note">“{{ r['note'] }}”</div>{% endif %}
-          </div>
-        </div>
-      {% endfor %}
+      {% for r in rounds|reverse %}{{ round_item(r, user['id']) }}{% endfor %}
     </div>
   </div>
 
@@ -95,7 +75,10 @@
       <div class="deal-wait">This deal is closed.</div>
     {% endif %}
   </div>
+
+  <div class="srv-panel coach-panel" id="coach-panel" hidden></div>
 </div>
+<script src="{{ url_for('static', filename='js/dealcoach.js') }}" data-interest="{{ offer['id'] }}"></script>
 <script>
   // Counter boxes appear when "Counter" is picked, and the button tells you what will happen.
   function dealOutcome() {

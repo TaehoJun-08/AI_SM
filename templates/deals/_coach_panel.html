@@ -1,0 +1,29 @@
+{# The counter-offer coach: Nova's take on this deal, grounded in its history and the platform's own
+   accepted-deal benchmarks, plus free-form chat to refine before the person fills the real form. #}
+{% from "deals/_macros.html" import round_item %}
+<img class="coach-mascot" src="{{ url_for('static', filename='img/coach-robot.png') }}" alt="">
+<div class="panel-head">
+  <b>Counter-offer coach</b>
+  <button type="button" class="srv-icon-btn" data-close-panel aria-label="Close">&times;</button>
+</div>
+<div class="panel-body">
+  <h6 class="section-title">This deal so far</h6>
+  <div class="deal-timeline compact">
+    {% for r in rounds[-8:]|reverse %}{{ round_item(r, user['id']) }}{% endfor %}
+  </div>
+
+  <h6 class="section-title mt-3">Ask Nova</h6>
+  <div class="chat-log dm-log" id="coach-log" data-kickoff="{{ '1' if kickoff else '0' }}">
+    {% for m in chat %}
+      <div class="msg {{ 'mine' if m['role'] == 'user' }}">
+        <div class="msg-main"><div class="msg-body">{{ m['body'] }}</div></div>
+      </div>
+    {% else %}
+      <p class="muted small">Nova will look at this deal and suggest where to land.</p>
+    {% endfor %}
+  </div>
+  <form id="coach-form" class="nova-form coach-form">
+    <textarea id="coach-input" rows="1" maxlength="2000" placeholder="Ask Nova about this counter…"></textarea>
+    <button type="submit" class="btn btn-primary btn-sm rounded-pill">Send</button>
+  </form>
+</div>

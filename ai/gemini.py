@@ -8,6 +8,11 @@ from ai import tools
 MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 MAX_HOPS = 4
 HISTORY_TURNS = 12
+COACH_MAX_HOPS = 3
+
+KICKOFF_PROMPT = ("I've just chosen to counter on this deal. Look at this deal's own history and how "
+                   "similar deals on the platform have landed, then give me one concrete opening "
+                   "suggestion for my counter -- specific terms, not vague advice. Keep it short.")
 
 SYSTEM = (
     "You are Nova, the AI built into the AI Sponsorship Matchmaker platform. You help innovators and "
@@ -126,3 +131,71 @@ def ask_in_server(db, question, project_context=None, history_text=""):
     contents = [types.Content(role="user", parts=[types.Part(text=question)])]
     text = _run_loop(client, config, contents, {"db": db, "user_id": None}, 3)
     return text[:1800]
+
+
+def _coach_system(interest_id, role):
+    return (
+        f"You are Nova, acting as a sounding board for ONE person in ONE specific sponsorship "
+        f"negotiation (interest_id={interest_id}). The current user is the {role} side of this deal. "
+        f"Start by calling get_deal_room with interest_id={interest_id} to see this deal's own history "
+        f"and current terms -- never guess at numbers you haven't looked up. Then call "
+        f"get_counter_benchmarks with this deal's domain and stage (from get_deal_room's result) to see "
+        f"how OTHER accepted deals on the platform have landed, so your suggestion reflects the market, "
+        f"not just this one negotiation. If a benchmark group's sample size is small, say so plainly "
+        f"instead of sounding falsely confident -- lean on the deal's own history and plain negotiation "
+        f"sense instead. When asked for a suggestion, propose ONE concrete, specific position (an exact "
+        f"number for money, specific wording for goods) and briefly say why. You are a sounding board "
+        f"only: you never submit, update or auto-fill anything in this deal -- the person always types "
+        f"their own counter into the deal room's own form themselves, after talking to you. Never claim "
+        f"you've changed or sent anything. Keep replies short and conversational.")
+
+
+def coach_counter_offer(db, user_id, interest_id, history, user_text):
+    """Streaming coach scoped to one deal + one side. `history` is prior deal_coach_messages for this
+    (interest_id, user_id) as [{'role': 'user'|'model', 'body': str}, ...]. `user_text` is the latest
+    thing the person typed, or KICKOFF_PROMPT for the opening auto-suggestion. Tools restricted to
+    get_deal_room + get_counter_benchmarks. Yields the same event shapes as stream_reply."""
+    client = _client()
+    if client is None:
+        yield {"type": "token", "text": ("Nova isn't connected yet -- ask whoever runs this site to add a "
+                                         "free GEMINI_API_KEY (from Google AI Studio) to the .env file.")}
+        return
+    import deals
+    from google.genai import types
+    offer = deals.load(db, interest_id)
+    role = deals.role_of(offer, user_id) if offer else None
+    if role is None:
+        yield {"type": "token", "text": "That deal room isn't visible to this user."}
+        return
+    contents = [types.Content(role=h["role"], parts=[types.Part(text=h["body"])]) for h in history]
+    contents.append(types.Content(role="user", parts=[types.Part(text=user_text)]))
+    config = types.GenerateContentConfig(
+        system_instruction=_coach_system(interest_id, role),
+        tools=[types.Tool(function_declarations=[
+            d for d in tools.DECLARATIONS if d["name"] in ("get_deal_room", "get_counter_benchmarks")])])
+    ctx = {"db": db, "user_id": user_id}
+    try:
+        for _ in range(COACH_MAX_HOPS):
+            text_buf, call_parts = "", []
+            for chunk in client.models.generate_content_stream(model=MODEL, contents=contents, config=config):
+                if not chunk.candidates or not chunk.candidates[0].content:
+                    continue
+                for part in chunk.candidates[0].content.parts or []:
+                    if getattr(part, "function_call", None):
+                        call_parts.append(part)
+                    elif getattr(part, "text", None):
+                        text_buf += part.text
+                        yield {"type": "token", "text": part.text}
+            if not call_parts:
+                return
+            yield {"type": "tool", "names": [p.function_call.name for p in call_parts]}
+            text_part = [types.Part(text=text_buf)] if text_buf else []
+            contents.append(types.Content(role="model", parts=text_part + call_parts))
+            result_parts = [types.Part.from_function_response(
+                                name=p.function_call.name,
+                                response={"result": tools.dispatch(p.function_call.name, dict(p.function_call.args or {}), ctx)})
+                            for p in call_parts]
+            contents.append(types.Content(role="user", parts=result_parts))
+        yield {"type": "token", "text": "\n\n(That took more steps than I'm allowed in one go -- try asking more simply.)"}
+    except Exception as e:
+        yield {"type": "token", "text": f"\n\nNova hit a snag talking to its model: {e}"}

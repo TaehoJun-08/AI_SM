@@ -47,7 +47,7 @@ TABLES_WITH_ID = {
     "comments", "servers", "server_roles", "server_categories", "server_channels",
     "server_messages", "post_media", "audit_log", "bots", "reminders", "server_emojis",
     "server_events", "project_updates", "project_milestones", "pending_posts", "deal_rounds",
-    "ai_messages", "ai_memory", "ai_actions", "project_endorsements",
+    "ai_messages", "ai_memory", "ai_actions", "project_endorsements", "deal_coach_messages",
 }
 
 _NAMED_PARAM = re.compile(r":(?!:)([a-z_][a-zA-Z0-9_]*)")

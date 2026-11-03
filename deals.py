@@ -66,8 +66,8 @@ def parse_offer(form, project):
 
 def load(db, interest_id):
     return db.execute(
-        """SELECT i.*, p.title, p.innovator_id FROM interests i JOIN projects p ON p.id = i.project_id
-           WHERE i.id = ?""", (interest_id,)).fetchone()
+        """SELECT i.*, p.title, p.innovator_id, p.domain, p.stage FROM interests i
+           JOIN projects p ON p.id = i.project_id WHERE i.id = ?""", (interest_id,)).fetchone()
 
 
 def role_of(offer, user_id):
@@ -241,3 +241,6 @@ def answer(interest_id):
     ok, message, _ = respond(db, offer, me, read_decisions(request.form, offer), request.form.get("note", "").strip())
     flash(message)
     return redirect(url_for("deals.room", interest_id=interest_id))
+
+
+from deals_coach import coach_panel, coach_send  # noqa: E402,F401  (more routes on the same blueprint)

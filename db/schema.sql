@@ -458,6 +458,18 @@ CREATE TABLE IF NOT EXISTS deal_rounds (
 );
 CREATE INDEX IF NOT EXISTS idx_deal_rounds ON deal_rounds (interest_id, id);
 
+-- One side's private chat with the counter-offer coach, for one deal. Survives closing/reopening the
+-- panel and carries across negotiation rounds; each party has their own, independent thread.
+CREATE TABLE IF NOT EXISTS deal_coach_messages (
+    id          SERIAL PRIMARY KEY,
+    interest_id INTEGER NOT NULL REFERENCES interests(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role        TEXT    NOT NULL CHECK (role IN ('user', 'model')),
+    body        TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (to_char(LOCALTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS'))
+);
+CREATE INDEX IF NOT EXISTS idx_deal_coach_messages ON deal_coach_messages (interest_id, user_id, id);
+
 -- ---------- Nova: the platform's AI assistant ----------
 
 CREATE TABLE IF NOT EXISTS ai_messages (

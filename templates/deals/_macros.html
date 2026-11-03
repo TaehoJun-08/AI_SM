@@ -1,0 +1,25 @@
+{# Shared between the deal room and the counter-offer coach panel, so both show the same timeline. #}
+{% set KIND = {'offer': ('📨', 'sent an offer'), 'counter': ('↔', 'sent a counter-offer'), 'accept': ('🤝', 'agreed to the deal'),
+               'decline': ('✖', 'ended the deal'), 'withdraw': ('↩️', 'withdrew'), 'edit': ('✏️', 'changed the offer')} %}
+
+{% macro chips(amount, goods, pilot) -%}
+  <div class="deal-chips">
+    {% if amount %}<span class="dchip money">💰 ₹{{ '{:,}'.format(amount) }}</span>{% endif %}
+    {% if goods %}<span class="dchip goods">🎁 {{ goods }}</span>{% endif %}
+    {% if pilot %}<span class="dchip pilot">🌱 Free sponsor</span>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro round_item(r, me_id) -%}
+  {% set icon_, verb = KIND[r['kind']] %}
+  <div class="round round-{{ r['kind'] }}">
+    <span class="round-dot">{{ icon_ }}</span>
+    <div class="round-body">
+      <div><b>{{ 'You' if r['actor_id'] == me_id else '@' ~ r['username'] }}</b> {{ verb }}
+        <small class="muted ms-1">{{ r['created_at'][:16] }}</small></div>
+      {% if r['kind'] in ['offer', 'counter', 'accept', 'edit'] %}{{ chips(r['amount'], r['goods'], r['pilot']) }}{% endif %}
+      {% if r['summary'] and r['kind'] in ['counter', 'accept', 'decline', 'edit'] %}<div class="round-sum">{{ r['summary'] }}</div>{% endif %}
+      {% if r['note'] %}<div class="round-note">“{{ r['note'] }}”</div>{% endif %}
+    </div>
+  </div>
+{%- endmacro %}
